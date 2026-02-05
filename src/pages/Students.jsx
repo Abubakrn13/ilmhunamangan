@@ -1,181 +1,260 @@
 import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
-import { Plus, Trash2, User, Star, Award, RefreshCw, X, DollarSign, CheckCircle, Wallet } from 'lucide-react';
+import { 
+  User, Plus, Search, Trash2, Phone, Star, Layers, X, 
+  Edit, Wallet, CheckCircle, Zap, CalendarClock 
+} from 'lucide-react';
+import { ConfirmModal } from '../components/ConfirmModal';
 
 export const Students = () => {
-  const { students, addStudent, deleteStudent, changeStudentGroup, addPayment, groups, giveBonus } = useData();
+  const data = useData();
+  if (!data) return null;
+
+  // payments ni oldik
+  const { students, groups, payments, addStudent, updateStudent, deleteStudent, addPayment, giveBonus, theme } = data;
+  const isDark = theme === 'dark';
   
-  const [isOpen, setIsOpen] = useState(false);
-  const [formData, setFormData] = useState({ name: '', group: '', phone: '', status: 'active' });
-  const [transferModal, setTransferModal] = useState(null);
-  const [newGroup, setNewGroup] = useState('');
-  const [paymentModal, setPaymentModal] = useState(null);
-  const [payAmount, setPayAmount] = useState('');
+  // State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isPayModalOpen, setIsPayModalOpen] = useState(false);
+  const [isBonusModalOpen, setIsBonusModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  
+  const [editingStudent, setEditingStudent] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
-  // --- FUNKSIYALAR ---
+  const [formData, setFormData] = useState({ id: null, name: '', phone: '', groupIds: [] });
+  const [payData, setPayData] = useState({ studentId: null, name: '', amount: '', groupId: '', date: new Date().toISOString().slice(0, 10) });
+  const [bonusData, setBonusData] = useState({ studentId: null, name: '', points: 10, reason: '' });
+  
+  const [search, setSearch] = useState('');
 
-  // 🔥 SANA FORMATLASH FUNKSIYASI (YANGI)
-  const formatDate = (dateString) => {
-    if (!dateString) return null;
-    // 2026-01-27 ni olib -> ["2026", "01", "27"] qilamiz -> teskari aylantiramiz -> nuqta bilan ulaymiz
-    return dateString.split('-').reverse().join('.'); 
+  const safeStudents = students || [];
+  const safeGroups = groups || [];
+
+  // --- 🔥 MUHIM: Guruh bo'yicha kunni hisoblash ---
+  const getGroupDays = (studentId, groupId) => {
+    const group = safeGroups.find(g => g.id === groupId);
+    if (!group) return 0;
+
+    // Shu o'quvchi va shu guruh bo'yicha to'lovlar
+    const studentPayments = payments?.filter(p => p.studentId === studentId && p.groupId === groupId) || [];
+    
+    // Jami to'lagan puli
+    const totalPaid = studentPayments.reduce((sum, p) => sum + (parseInt(p.amount) || 0), 0);
+    
+    // Kun hisoblash
+    const monthlyPrice = parseInt(group.price) || 1;
+    return Math.floor((totalPaid / monthlyPrice) * 30);
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!formData.name || !formData.group) return alert("To'ldiring!");
-    addStudent(formData);
-    setFormData({ name: '', group: '', phone: '', status: 'active' });
-    setIsOpen(false);
+  // Qidiruv
+  const filteredStudents = safeStudents.filter(s => 
+    s.name.toLowerCase().includes(search.toLowerCase()) || 
+    s.phone.includes(search)
+  );
+
+  // --- ACTIONS ---
+  const openModal = (s) => { 
+    if(s) { setEditingStudent(s); setFormData({ ...s, groupIds: s.groupIds || [] }); } 
+    else { setEditingStudent(null); setFormData({ id: null, name: '', phone: '', groupIds: [] }); }
+    setIsModalOpen(true); 
   };
 
-  const handleBonus = (studentId) => {
-    if(window.confirm("O'quvchiga 10 ball bonus beramizmi?")) {
-      giveBonus(studentId, 10);
-    }
+  const handleSubmit = (e) => { 
+    e.preventDefault(); 
+    if (!formData.name || !formData.phone) return alert("Ism va Telefon majburiy!");
+    editingStudent ? updateStudent(formData) : addStudent(formData); 
+    setIsModalOpen(false); 
   };
 
-  const handleTransfer = () => {
-    if (!newGroup) return alert("Iltimos, yangi guruhni tanlang!");
-    changeStudentGroup(transferModal.id, newGroup);
-    setTransferModal(null);
-    setNewGroup('');
-    alert("O'quvchi muvaffaqiyatli ko'chirildi! ✅");
+  const handleDeleteConfirm = () => { deleteStudent(deletingId); setIsDeleteModalOpen(false); };
+  
+  const toggleGroupSelection = (gid) => { 
+    if(formData.groupIds.includes(gid)) setFormData({...formData, groupIds:formData.groupIds.filter(i=>i!==gid)}); 
+    else setFormData({...formData, groupIds:[...formData.groupIds, gid]}); 
   };
 
-  const handleDelete = (id, name) => {
-    if (window.confirm(`DIQQAT!\n"${name}"ni o'chirmoqchimisiz?`)) {
-      deleteStudent(id);
-    }
+  const openPayModal = (s) => { 
+    if (!s.groupIds || s.groupIds.length === 0) return alert("O'quvchi guruhga a'zo emas!");
+    setPayData({ studentId:s.id, name:s.name, amount:'', groupId:s.groupIds[0], date:new Date().toISOString().slice(0,10) }); 
+    setIsPayModalOpen(true); 
   };
 
-  const handlePaymentSubmit = (e) => {
-    e.preventDefault();
-    if (!payAmount) return alert("Summani kiriting!");
-    addPayment({
-      student: paymentModal.name,
-      amount: payAmount,
-      type: 'Naqd',
-    });
-    setPaymentModal(null);
-    setPayAmount('');
+  const handlePaySubmit = (e) => { 
+    e.preventDefault(); 
+    if (!payData.amount || !payData.groupId) return alert("Summa va Kursni tanlang!");
+    const g = safeGroups.find(gr=>gr.id==payData.groupId); 
+    addPayment({ student:payData.name, studentId:payData.studentId, groupId:parseInt(payData.groupId), amount:payData.amount, date:payData.date, type:'income', reason:`To'lov: ${g?.name}` }); 
+    setIsPayModalOpen(false); 
   };
 
-  const inputStyle = "p-3 border border-milk-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 dark:text-white outline-none focus:border-brand-500 w-full";
+  const openBonusModal = (s) => { setBonusData({studentId:s.id, name:s.name, points:10, reason:'Dars faolligi'}); setIsBonusModalOpen(true); };
+  const handleBonusSubmit = (e) => { e.preventDefault(); giveBonus(bonusData.studentId, bonusData.points, bonusData.reason); setIsBonusModalOpen(false); };
+
+  const calculateDays = () => { 
+    const g=safeGroups.find(gr=>gr.id==payData.groupId); 
+    return Math.floor((parseInt(payData.amount)/(parseInt(g?.price)||1))*30); 
+  };
 
   return (
-    <div className="p-8 pb-20">
-      <div className="flex justify-between items-center mb-8">
+    <div className={`p-10 min-h-screen pb-24 transition-all duration-300 ${isDark ? 'bg-[#0b1120] text-white' : 'bg-slate-50 text-slate-900'}`}>
+      
+      {/* HEADER */}
+      <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
         <div>
-            <h1 className="text-2xl font-bold text-milk-900 dark:text-white">O'quvchilar</h1>
-            <p className="text-sm text-milk-500">Jami: {students.length} ta</p>
+          <h1 className="text-3xl font-black tracking-tight flex items-center gap-3">
+            O'quvchilar <span className="text-sm font-bold px-3 py-1 rounded-full bg-cyan-500/10 text-cyan-500 border border-cyan-500/20">{safeStudents.length} ta</span>
+          </h1>
+          <p className={`text-sm mt-1 font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+            Barcha o'quvchilar ro'yxati va boshqaruvi
+          </p>
         </div>
-        <button onClick={() => setIsOpen(true)} className="bg-brand-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-brand-700 shadow-lg active:scale-95 transition">
-            <Plus size={18} /> Qo'shish
-        </button>
+
+        <div className="flex gap-4 w-full md:w-auto">
+           <div className={`flex items-center px-4 py-3 rounded-2xl border w-full md:w-64 ${isDark ? 'bg-[#161d31] border-white/10' : 'bg-white border-slate-200'}`}>
+              <Search size={20} className="text-slate-400 mr-2"/>
+              <input placeholder="Qidirish..." className={`bg-transparent outline-none w-full font-medium ${isDark ? 'text-white' : 'text-slate-900'}`} value={search} onChange={e => setSearch(e.target.value)} />
+           </div>
+           <button onClick={() => openModal(null)} className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:shadow-cyan-500/30 px-6 py-3 rounded-2xl font-bold transition flex items-center gap-2 text-white shadow-lg active:scale-95 whitespace-nowrap">
+             <Plus size={20}/> Qo'shish
+           </button>
+        </div>
       </div>
 
-      {/* QO'SHISH OYNASI */}
-      {isOpen && (
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-milk-200 dark:border-slate-700 shadow-soft mb-8 animate-in zoom-in">
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
-            <input placeholder="Ism Familiya" className={inputStyle} value={formData.name} onChange={e=>setFormData({...formData, name:e.target.value})} />
-            <select className={inputStyle} value={formData.group} onChange={e=>setFormData({...formData, group:e.target.value})}><option value="">Guruhni tanlang</option>{groups.map(g=><option key={g.id} value={g.name}>{g.name}</option>)}</select>
-            <input placeholder="Telefon" className={inputStyle} value={formData.phone} onChange={e=>setFormData({...formData, phone:e.target.value})} />
-            <button className="bg-green-600 text-white p-3 rounded-lg w-full font-bold hover:bg-green-700 transition">Saqlash</button>
-          </form>
-        </div>
-      )}
-
-      {/* TO'LOV OYNASI */}
-      {paymentModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 backdrop-blur-sm animate-in zoom-in duration-200">
-          <div className="bg-white dark:bg-slate-800 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden border border-milk-200 dark:border-slate-700">
-            <div className="bg-green-600 p-6 text-white flex justify-between items-center">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm"><Wallet size={24} className="text-white"/></div>
-                <div><h3 className="text-lg font-bold">To'lov Qabul Qilish</h3><p className="text-green-100 text-sm">Kassaga kirim qilish</p></div>
-              </div>
-              <button onClick={() => setPaymentModal(null)} className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition"><X size={20} /></button>
-            </div>
-            <div className="p-8">
-              <div className="flex flex-col items-center mb-8">
-                <div className="w-16 h-16 bg-green-50 dark:bg-slate-700 rounded-full flex items-center justify-center text-green-600 dark:text-green-400 mb-3 shadow-inner"><User size={32} /></div>
-                <h2 className="text-2xl font-bold text-milk-900 dark:text-white">{paymentModal.name}</h2>
-                <span className="px-3 py-1 bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-gray-300 rounded-full text-sm mt-2 font-medium">{paymentModal.group}</span>
-              </div>
-              <form onSubmit={handlePaymentSubmit}>
-                <div className="relative mb-8">
-                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 text-center">To'lov Summasi (UZS)</label>
-                  <input type="number" autoFocus placeholder="0" className="w-full text-center text-4xl font-bold text-milk-900 dark:text-white bg-transparent border-b-2 border-gray-200 dark:border-slate-600 focus:border-green-500 outline-none pb-2 transition-colors placeholder-gray-300" value={payAmount} onChange={e => setPayAmount(e.target.value)} />
+      {/* GRID */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredStudents.length > 0 ? filteredStudents.map((s) => (
+          <div key={s.id} className={`p-6 rounded-[32px] border relative group transition-all duration-300 hover:-translate-y-2 hover:shadow-xl ${isDark ? 'bg-[#161d31] border-white/5 shadow-black/50' : 'bg-white border-slate-200 shadow-slate-200'}`}>
+             
+             <div className="flex justify-between items-start mb-4">
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black ${isDark ? 'bg-cyan-500/10 text-cyan-400' : 'bg-cyan-50 text-cyan-600'}`}>
+                   {s.name.charAt(0)}
                 </div>
-                <div className="flex gap-3">
-                   <button type="button" onClick={() => setPaymentModal(null)} className="flex-1 py-4 rounded-xl font-bold text-gray-500 hover:bg-gray-50 dark:hover:bg-slate-700 transition">Bekor qilish</button>
-                   <button type="submit" className="flex-[2] py-4 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold shadow-lg shadow-green-500/30 active:scale-95 transition flex items-center justify-center gap-2"><CheckCircle size={20}/> Tasdiqlash</button>
+                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                   <button onClick={() => openBonusModal(s)} className="p-2 bg-orange-500/10 text-orange-500 hover:bg-orange-500 hover:text-white rounded-xl transition"><Zap size={18}/></button>
+                   <button onClick={() => openPayModal(s)} className="p-2 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white rounded-xl transition"><Wallet size={18}/></button>
+                   <button onClick={() => openModal(s)} className="p-2 bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white rounded-xl transition"><Edit size={18}/></button>
+                   <button onClick={() => { setDeletingId(s.id); setIsDeleteModalOpen(true); }} className="p-2 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded-xl transition"><Trash2 size={18}/></button>
                 </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
+             </div>
 
-      {/* TRANSFER OYNASI */}
-      {transferModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl w-96 shadow-2xl border border-milk-200 dark:border-slate-700">
-            <h3 className="text-lg font-bold mb-4 dark:text-white">Guruhni o'zgartirish</h3>
-            <p className="text-sm text-gray-500 mb-4"><span className="font-bold text-brand-600">{transferModal.name}</span> ni qaysi guruhga o'tkazamiz?</p>
-            <select className={inputStyle + " mb-4"} value={newGroup} onChange={e => setNewGroup(e.target.value)}>
-              <option value="">Yangi guruhni tanlang...</option>
-              {groups.filter(g => g.name !== transferModal.group).map(g => (<option key={g.id} value={g.name}>{g.name}</option>))}
-            </select>
-            <div className="flex gap-2">
-                <button onClick={() => setTransferModal(null)} className="flex-1 p-3 bg-gray-100 text-gray-600 rounded-lg font-bold">Bekor qilish</button>
-                <button onClick={handleTransfer} className="flex-1 bg-blue-600 text-white p-3 rounded-lg font-bold">O'tkazish</button>
-            </div>
-          </div>
-        </div>
-      )}
+             <h3 className="text-xl font-bold mb-1 truncate">{s.name}</h3>
+             <p className={`flex items-center gap-2 text-sm font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+               <Phone size={14} className="text-cyan-500"/> {s.phone}
+             </p>
 
-      {/* JADVAL */}
-      <div className="bg-white dark:bg-slate-800 rounded-2xl border border-milk-200 dark:border-slate-700 shadow-soft overflow-hidden">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-milk-50 dark:bg-slate-900 text-milk-500 dark:text-slate-400">
-            <tr><th className="p-4">Ism</th><th className="p-4">Guruh</th><th className="p-4">Reyting</th><th className="p-4">Muddat</th><th className="p-4 text-right">Amallar</th></tr>
-          </thead>
-          <tbody className="divide-y divide-milk-100 dark:divide-slate-700">
-            {students.map((s) => (
-              <tr key={s.id} className="hover:bg-milk-50 dark:hover:bg-slate-700/50 transition">
-                <td className="p-4 font-bold text-milk-900 dark:text-white flex items-center gap-3">
-                   <div className="w-8 h-8 rounded-full bg-brand-50 dark:bg-slate-700 flex items-center justify-center text-brand-600"><User size={16}/></div>
-                   {s.name}
-                </td>
-                <td className="p-4"><span className="bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300 px-2 py-1 rounded text-xs font-bold">{s.group}</span></td>
-                
-                <td className="p-4 flex items-center gap-2">
-                   <span className="flex items-center gap-1 font-bold text-orange-500 bg-orange-50 dark:bg-orange-900/20 px-2 py-1 rounded-full text-xs"><Star size={14} fill="currentColor" /> {s.score || 0} XP</span>
-                   <button onClick={() => handleBonus(s.id)} title="+10 Bonus" className="p-1 text-gray-400 hover:text-yellow-500 active:scale-125 transition"><Award size={16}/></button>
-                </td>
+             {/* 🔥 GURUHLAR VA KUNLAR (Multi-Badge) */}
+             <div className="mt-4 flex flex-col gap-2 min-h-[30px]">
+                {s.groupIds && s.groupIds.length > 0 ? s.groupIds.map(gid => {
+                   const g = safeGroups.find(gr => gr.id === gid);
+                   const days = getGroupDays(s.id, gid); // Kun hisoblash
 
-                {/* 🔥 SANA FORMATI O'ZGARDI */}
-                <td className="p-4">
-                    {s.nextPaymentDate ? (
-                        <span className={`text-xs font-bold px-2 py-1 rounded ${new Date(s.nextPaymentDate) <= new Date() ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
-                            {formatDate(s.nextPaymentDate)}
+                   return g ? (
+                     <div key={gid} className={`flex justify-between items-center px-3 py-2 rounded-xl text-xs font-bold border ${isDark ? 'bg-[#0b1120] border-white/10' : 'bg-slate-50 border-slate-200'}`}>
+                        <div className="flex items-center gap-2">
+                           <Layers size={12} className="text-purple-500"/> 
+                           <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>{g.name}</span>
+                        </div>
+                        <span className={`${days > 5 ? 'text-emerald-500' : days > 0 ? 'text-orange-500' : 'text-rose-500'}`}>
+                           {days} kun
                         </span>
-                    ) : <span className="text-xs text-milk-400">To'lovsiz</span>}
-                </td>
-                
-                <td className="p-4 text-right flex justify-end gap-2">
-                  <button onClick={() => setPaymentModal(s)} className="p-2 text-green-600 bg-green-50 dark:bg-green-900/10 hover:bg-green-100 rounded-lg transition shadow-sm border border-green-200 dark:border-green-900/30" title="To'lov qilish"><DollarSign size={18} /></button>
-                  <button onClick={() => setTransferModal(s)} className="p-2 text-blue-500 bg-blue-50 dark:bg-blue-900/10 hover:bg-blue-100 rounded-lg transition" title="Guruhni o'zgartirish"><RefreshCw size={18} /></button>
-                  <button onClick={() => handleDelete(s.id, s.name)} className="p-2 text-red-400 bg-red-50 dark:bg-red-900/10 hover:bg-red-100 rounded-lg transition" title="O'chirish"><Trash2 size={18} /></button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                     </div>
+                   ) : null;
+                }) : (
+                   <span className="text-xs text-rose-500 bg-rose-500/10 px-2 py-1 rounded font-bold w-fit">Guruhsiz</span>
+                )}
+             </div>
+
+             <div className="absolute bottom-6 right-6 flex items-center gap-1 text-orange-500 font-black bg-orange-500/10 px-3 py-1 rounded-lg text-xs border border-orange-500/20">
+                <Star size={12} fill="currentColor"/> {s.score || 0} XP
+             </div>
+
+          </div>
+        )) : (
+          <div className="col-span-full py-20 text-center opacity-50 flex flex-col items-center">
+             <User size={64} className="mb-4 text-slate-300"/>
+             <p className="text-xl font-bold">Topilmadi</p>
+          </div>
+        )}
       </div>
+
+      {/* MODALLAR */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
+           <div className={`w-full max-w-lg p-8 rounded-[32px] border shadow-2xl ${isDark ? 'bg-[#161d31] border-white/10' : 'bg-white'}`}>
+              <h2 className={`text-2xl font-bold mb-6 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                {editingStudent ? "Tahrirlash" : "Yangi O'quvchi"}
+              </h2>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                 <input placeholder="Ism Familiya" className={`w-full p-4 rounded-2xl outline-none border font-bold ${isDark ? 'bg-[#0b1120] border-white/5 text-white' : 'bg-slate-50 border-slate-200'}`} value={formData.name} onChange={e=>setFormData({...formData, name: e.target.value})} required />
+                 <input placeholder="Telefon" className={`w-full p-4 rounded-2xl outline-none border font-bold ${isDark ? 'bg-[#0b1120] border-white/5 text-white' : 'bg-slate-50 border-slate-200'}`} value={formData.phone} onChange={e=>setFormData({...formData, phone: e.target.value})} required />
+                 <div>
+                    <p className="text-xs font-bold uppercase text-slate-500 mb-2">Guruhlarga biriktirish</p>
+                    <div className={`p-2 rounded-2xl border max-h-40 overflow-y-auto custom-scrollbar ${isDark ? 'bg-[#0b1120] border-white/5' : 'bg-slate-50 border-slate-200'}`}>
+                       {safeGroups.map(g => (
+                         <div key={g.id} onClick={() => toggleGroupSelection(g.id)} className={`p-3 rounded-xl text-sm font-bold cursor-pointer mb-1 transition-all flex justify-between items-center ${formData.groupIds.includes(g.id) ? 'bg-cyan-500 text-white shadow-md' : isDark ? 'text-slate-400 hover:bg-white/5' : 'text-slate-600 hover:bg-slate-200'}`}>
+                            <span>{g.name}</span>
+                            {formData.groupIds.includes(g.id) && <CheckCircle size={16}/>}
+                         </div>
+                       ))}
+                    </div>
+                 </div>
+                 <div className="flex gap-3 mt-4">
+                    <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-4 bg-slate-500/10 rounded-2xl font-bold">Bekor</button>
+                    <button type="submit" className="flex-1 py-4 bg-cyan-600 text-white rounded-2xl font-bold">Saqlash</button>
+                 </div>
+              </form>
+           </div>
+        </div>
+      )}
+
+      {isPayModalOpen && (
+         <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
+            <div className={`w-full max-w-md p-8 rounded-[32px] border shadow-2xl ${isDark ? 'bg-[#161d31] border-white/10' : 'bg-white'}`}>
+               <h2 className="text-2xl font-bold text-emerald-500 mb-6 flex gap-2"><Wallet /> To'lov</h2>
+               <div className="mb-4 text-center">
+                  <h3 className="text-xl font-bold">{payData.name}</h3>
+               </div>
+               <form onSubmit={handlePaySubmit} className="space-y-4">
+                  <div className="space-y-1">
+                     <label className="text-xs font-bold text-slate-500 uppercase ml-1">Qaysi kurs uchun?</label>
+                     <select className={`w-full p-4 rounded-2xl outline-none border font-bold ${isDark ? 'bg-[#0b1120] border-white/5 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`} value={payData.groupId} onChange={e => setPayData({...payData, groupId: e.target.value})} required>
+                        <option value="" className="text-black">Tanlang...</option>
+                        {safeStudents.find(s => s.id === payData.studentId)?.groupIds.map(gid => {
+                           const g = safeGroups.find(gr => gr.id === gid);
+                           return <option key={gid} value={gid} className="text-black">{g?.name} ({parseInt(g?.price).toLocaleString()} UZS)</option>
+                        })}
+                     </select>
+                  </div>
+                  <input type="number" placeholder="Summa (UZS)" className={`w-full p-4 rounded-2xl outline-none border font-bold text-lg text-emerald-500 ${isDark ? 'bg-[#0b1120] border-white/5' : 'bg-slate-50 border-slate-200'}`} value={payData.amount} onChange={e => setPayData({...payData, amount: e.target.value})} required />
+                  {payData.amount && payData.groupId && (
+                     <div className="p-4 rounded-2xl text-center text-sm font-bold bg-emerald-500/10 text-emerald-500">
+                        + {calculateDays()} kun qo'shiladi
+                     </div>
+                  )}
+                  <button type="submit" className="w-full py-4 rounded-2xl font-bold bg-emerald-500 text-white">Tasdiqlash</button>
+               </form>
+            </div>
+         </div>
+      )}
+
+      {isBonusModalOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
+           <div className={`w-full max-w-sm p-8 rounded-[32px] border shadow-2xl ${isDark ? 'bg-[#161d31] border-white/10' : 'bg-white'}`}>
+              <h2 className="text-xl font-bold mb-6 flex items-center gap-2 text-orange-500"><Zap /> Ball Berish</h2>
+              <h3 className="text-center font-bold text-xl mb-6">{bonusData.name}</h3>
+              <form onSubmit={handleBonusSubmit} className="space-y-4">
+                 <input type="number" className={`w-full p-4 rounded-2xl outline-none border font-black text-center text-3xl text-orange-500 ${isDark ? 'bg-[#0b1120] border-white/5' : 'bg-slate-50 border-slate-200'}`} value={bonusData.points} onChange={e => setBonusData({...bonusData, points: e.target.value})} required />
+                 <input className={`w-full p-4 rounded-2xl outline-none border font-bold ${isDark ? 'bg-[#0b1120] border-white/5 text-white' : 'bg-slate-50 border-slate-200'}`} value={bonusData.reason} onChange={e => setBonusData({...bonusData, reason: e.target.value})} placeholder="Sabab" required />
+                 <button type="submit" className="w-full py-4 bg-orange-500 text-white rounded-2xl font-bold">Tasdiqlash</button>
+              </form>
+           </div>
+        </div>
+      )}
+
+      <ConfirmModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} onConfirm={handleDeleteConfirm} isDark={isDark} title="O'chirish" />
+
     </div>
   );
 };

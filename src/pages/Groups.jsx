@@ -1,137 +1,232 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
-import { Plus, Trash2, Users, BookOpen, Clock, DollarSign } from 'lucide-react';
+import { 
+  Layers, Plus, X, Users, 
+  Clock, Calendar, UserCheck, ChevronRight, Percent, Search 
+} from 'lucide-react';
 
 export const Groups = () => {
-  const { groups, addGroup, deleteGroup } = useData();
+  const navigate = useNavigate();
+  const data = useData();
   
-  const [isOpen, setIsOpen] = useState(false);
-  const [formData, setFormData] = useState({ name: '', teacher: '', time: '', price: '' });
+  if (!data) return null;
 
-  // Guruh qo'shish
+  const { groups, students, addGroup, theme } = data;
+  const isDark = theme === 'dark';
+
+  // State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [search, setSearch] = useState(''); // 🔥 Qidiruv State
+
+  const [formData, setFormData] = useState({
+    name: '', teacher: '', price: '', days: '', time: '', teacherPercent: ''
+  });
+
+  const safeGroups = groups || [];
+  const safeStudents = students || [];
+
+  // --- 🔥 QIDIRUV LOGIKASI ---
+  const filteredGroups = safeGroups.filter(group => 
+    group.name.toLowerCase().includes(search.toLowerCase()) || 
+    (group.teacher || '').toLowerCase().includes(search.toLowerCase())
+  );
+
+  // --- STATISTIKA ---
+  const getGroupStats = (groupId) => {
+    const count = safeStudents.filter(s => s.groupIds && s.groupIds.includes(groupId)).length;
+    const group = safeGroups.find(g => g.id === groupId);
+    const price = parseInt(group?.price) || 0;
+    
+    return {
+      count,
+      potentialRevenue: (count * price).toLocaleString()
+    };
+  };
+
+  // --- QO'SHISH ---
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!formData.name || !formData.teacher) return alert("Ma'lumotlarni to'ldiring!");
+    if (!formData.name || !formData.price) return alert("Nom va Narx majburiy!");
     
     addGroup(formData);
-    setFormData({ name: '', teacher: '', time: '', price: '' });
-    setIsOpen(false);
+    setIsModalOpen(false);
+    setFormData({ name: '', teacher: '', price: '', days: '', time: '', teacherPercent: '' });
   };
-
-  // Guruhni o'chirish
-  const handleDelete = (e, id, name) => {
-    e.preventDefault(); // Link bosilib ketmasligi uchun
-    e.stopPropagation(); // Link bosilib ketmasligi uchun
-    
-    if (window.confirm(`"${name}" guruhini o'chirmoqchimisiz? Ichidagi o'quvchilar guruhsiz qoladi!`)) {
-      deleteGroup(id);
-    }
-  };
-
-  const inputStyle = "p-3 border border-milk-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 dark:text-white outline-none focus:border-brand-500 w-full";
 
   return (
-    <div className="p-8 pb-20 animate-in fade-in zoom-in duration-300">
+    <div className={`p-10 min-h-screen pb-24 transition-all duration-300 ${isDark ? 'bg-[#0b1120] text-white' : 'bg-slate-50 text-slate-900'}`}>
       
       {/* HEADER */}
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-milk-900 dark:text-white">Guruhlar</h1>
-          <p className="text-milk-500 dark:text-slate-400">Jami: {groups.length} ta guruh</p>
+          <h1 className="text-3xl font-black tracking-tight flex items-center gap-3">
+            Guruhlar <span className="text-sm font-bold px-3 py-1 rounded-full bg-cyan-500/10 text-cyan-500 border border-cyan-500/20">{safeGroups.length} ta</span>
+          </h1>
+          <p className={`text-sm mt-1 font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+            O'quv markazingizdagi barcha yo'nalishlar
+          </p>
         </div>
-        <button 
-          onClick={() => setIsOpen(true)} 
-          className="bg-brand-600 text-white px-5 py-3 rounded-xl flex items-center gap-2 hover:bg-brand-700 shadow-lg shadow-brand-500/30 active:scale-95 transition font-bold"
-        >
-          <Plus size={20} /> Guruh Qo'shish
-        </button>
+
+        <div className="flex gap-4 w-full md:w-auto">
+           {/* 🔥 QIDIRUV INPUTI */}
+           <div className={`relative flex items-center px-4 py-3 rounded-2xl border w-full md:w-64 ${isDark ? 'bg-[#161d31] border-white/10' : 'bg-white border-slate-200'}`}>
+              <Search size={20} className="text-slate-400 mr-2"/>
+              <input 
+                placeholder="Guruh yoki O'qituvchi..." 
+                className={`bg-transparent outline-none w-full font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+              />
+              {search && (
+                <button onClick={() => setSearch('')} className="absolute right-3 text-slate-400 hover:text-rose-500">
+                  <X size={16} />
+                </button>
+              )}
+           </div>
+
+           <button 
+             onClick={() => setIsModalOpen(true)} 
+             className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:shadow-cyan-500/30 px-6 py-3 rounded-2xl font-bold transition flex items-center gap-2 text-white shadow-lg active:scale-95 whitespace-nowrap"
+           >
+             <Plus size={20} /> Yangi Guruh
+           </button>
+        </div>
       </div>
 
-      {/* MODAL (Guruh qo'shish oynasi) */}
-      {isOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl w-full max-w-md shadow-2xl border border-milk-200 dark:border-slate-700">
-            <h2 className="text-2xl font-bold mb-6 text-milk-900 dark:text-white">Yangi Guruh</h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="text-sm font-bold text-gray-500 dark:text-gray-400 mb-1 block">Guruh Nomi</label>
-                <input placeholder="Masalan: Frontend 01" className={inputStyle} value={formData.name} onChange={e=>setFormData({...formData, name:e.target.value})} />
-              </div>
-              <div>
-                <label className="text-sm font-bold text-gray-500 dark:text-gray-400 mb-1 block">O'qituvchi</label>
-                <input placeholder="Ism Familiya" className={inputStyle} value={formData.teacher} onChange={e=>setFormData({...formData, teacher:e.target.value})} />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                   <label className="text-sm font-bold text-gray-500 dark:text-gray-400 mb-1 block">Vaqt</label>
-                   <input placeholder="14:00 - 16:00" className={inputStyle} value={formData.time} onChange={e=>setFormData({...formData, time:e.target.value})} />
-                </div>
-                <div>
-                   <label className="text-sm font-bold text-gray-500 dark:text-gray-400 mb-1 block">Narx (so'm)</label>
-                   <input type="number" placeholder="500000" className={inputStyle} value={formData.price} onChange={e=>setFormData({...formData, price:e.target.value})} />
-                </div>
-              </div>
-              
-              <div className="flex gap-3 mt-6">
-                <button type="button" onClick={() => setIsOpen(false)} className="flex-1 py-3 bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-200 dark:hover:bg-slate-600 transition">Bekor qilish</button>
-                <button type="submit" className="flex-1 py-3 bg-brand-600 text-white rounded-xl font-bold hover:bg-brand-700 transition shadow-lg">Saqlash</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* GURUHLAR RO'YXATI */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        {filteredGroups.length > 0 ? filteredGroups.map((group) => {
+          const stats = getGroupStats(group.id);
 
-      {/* GURUHLAR RO'YXATI (GRID) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {groups.length > 0 ? (
-          groups.map((group) => (
-            <Link 
-              to={`/groups/${group.id}`} 
+          return (
+            <div 
               key={group.id} 
-              className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-soft hover:shadow-xl transition border border-milk-200 dark:border-slate-700 group relative overflow-hidden"
+              onClick={() => navigate(`/groups/${group.id}`)}
+              className={`group relative p-6 rounded-[32px] border transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl cursor-pointer overflow-hidden ${isDark ? 'bg-[#161d31] border-white/5 shadow-black/50 hover:border-cyan-500/30' : 'bg-white border-slate-200 shadow-slate-200 hover:border-cyan-200'}`}
             >
-              {/* Orqa fon bezagi */}
-              <div className="absolute right-0 top-0 w-32 h-32 bg-brand-50 dark:bg-brand-900/10 rounded-bl-full -mr-10 -mt-10 transition group-hover:scale-110"></div>
+              <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-cyan-500/10 to-transparent rounded-bl-full -mr-10 -mt-10 transition-transform duration-500 group-hover:scale-110"></div>
 
-              <div className="flex justify-between items-start mb-4 relative z-10">
-                <div className="p-3 bg-brand-100 dark:bg-slate-700 text-brand-600 dark:text-white rounded-xl shadow-sm">
-                  <BookOpen size={24} />
+              <div className="flex items-start gap-4 mb-5 relative z-10">
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 shadow-lg ${isDark ? 'bg-gradient-to-br from-cyan-500/20 to-blue-500/10 text-cyan-400' : 'bg-gradient-to-br from-cyan-50 to-blue-50 text-cyan-600'}`}>
+                  <Layers size={28} />
                 </div>
-                <button 
-                  onClick={(e) => handleDelete(e, group.id, group.name)}
-                  className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition"
-                >
-                  <Trash2 size={20} />
-                </button>
+                <div className="flex-1 min-w-0">
+                   <h3 className="text-xl font-bold leading-tight mb-1 truncate pr-2">{group.name}</h3>
+                   <div className="flex items-center gap-2">
+                     <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded ${isDark ? 'bg-white/5 text-slate-400' : 'bg-slate-100 text-slate-500'}`}>ID: {group.id}</span>
+                     {group.teacherPercent && (
+                       <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded flex items-center gap-1">
+                         <Percent size={10}/> {group.teacherPercent}% KPI
+                       </span>
+                     )}
+                   </div>
+                </div>
               </div>
 
-              <h3 className="text-xl font-bold text-milk-900 dark:text-white mb-1 relative z-10">{group.name}</h3>
-              <p className="text-sm text-milk-500 dark:text-slate-400 mb-4 relative z-10">{group.teacher}</p>
-
-              <div className="space-y-2 relative z-10">
-                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
-                  <Clock size={16} className="text-orange-500"/> {group.time}
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
-                  <DollarSign size={16} className="text-green-500"/> {parseInt(group.price).toLocaleString()} UZS
-                </div>
-                <div className="flex items-center gap-2 text-sm font-bold text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-slate-700/50 p-2 rounded-lg w-fit">
-                  <Users size={16}/> {group.studentsCount || 0} ta o'quvchi
-                </div>
+              <div className={`p-3 rounded-2xl mb-5 flex items-center gap-3 transition-colors ${isDark ? 'bg-black/20 group-hover:bg-black/30' : 'bg-slate-50 group-hover:bg-slate-100'}`}>
+                 <div className="w-10 h-10 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm shadow-md">
+                    {group.teacher?.charAt(0) || "T"}
+                 </div>
+                 <div>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wide">O'qituvchi</p>
+                    <p className={`text-sm font-bold truncate max-w-[150px] ${isDark ? 'text-white' : 'text-slate-900'}`}>{group.teacher || "Belgilanmagan"}</p>
+                 </div>
               </div>
-            </Link>
-          ))
-        ) : (
-          <div className="col-span-full text-center py-20 text-gray-400">
-            <div className="w-20 h-20 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
-              <BookOpen size={40} className="opacity-50"/>
+
+              <div className="flex flex-wrap gap-2 mb-6 relative z-10">
+                <span className={`px-3 py-1.5 rounded-xl text-xs font-bold border flex items-center gap-1.5 ${isDark ? 'bg-[#0b1120] border-white/10 text-slate-300' : 'bg-white border-slate-200 text-slate-600'}`}>
+                  <Calendar size={14} className="text-purple-500"/> {group.days || "Kunlar"}
+                </span>
+                <span className={`px-3 py-1.5 rounded-xl text-xs font-bold border flex items-center gap-1.5 ${isDark ? 'bg-[#0b1120] border-white/10 text-slate-300' : 'bg-white border-slate-200 text-slate-600'}`}>
+                  <Clock size={14} className="text-orange-500"/> {group.time || "Vaqt"}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between mt-4 pt-4 border-t border-dashed border-slate-500/20 relative z-10">
+                 <div>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase mb-1">O'quvchilar</p>
+                    <div className="flex items-center gap-2">
+                       <Users size={16} className="text-blue-500"/>
+                       <span className="text-lg font-black">{stats.count}</span>
+                    </div>
+                 </div>
+                 <div className="text-right">
+                    <p className="text-[10px] text-slate-500 font-bold uppercase mb-1">Kurs Narxi</p>
+                    <p className="font-black text-lg text-emerald-500 tracking-tight">
+                      {parseInt(group.price).toLocaleString()}
+                    </p>
+                 </div>
+              </div>
+
+              <div className={`absolute bottom-6 right-6 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-4 group-hover:translate-x-0`}>
+                 <div className="w-10 h-10 rounded-full bg-cyan-500 text-white flex items-center justify-center shadow-lg shadow-cyan-500/40">
+                    <ChevronRight size={20}/>
+                 </div>
+              </div>
+
             </div>
-            <p className="text-lg">Hozircha guruhlar yo'q.</p>
-            <p className="text-sm">"Guruh Qo'shish" tugmasini bosib yangi guruh yarating.</p>
+          )
+        }) : (
+          <div className="col-span-full py-20 text-center text-slate-500 opacity-50 flex flex-col items-center">
+             <Layers size={80} className="mb-4 text-slate-300"/>
+             <p className="text-2xl font-bold">Guruhlar topilmadi</p>
+             <p className="mt-2">Boshqa nom bilan qidirib ko'ring yoki yangi guruh qo'shing</p>
           </div>
         )}
       </div>
+
+      {/* CREATE MODAL */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+           <div className={`w-full max-w-lg p-8 rounded-[32px] border shadow-2xl scale-100 animate-in zoom-in-95 duration-200 ${isDark ? 'bg-[#161d31] border-white/10' : 'bg-white'}`}>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>Yangi Guruh</h2>
+                <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-rose-500 transition"><X /></button>
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-4">
+                 <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-500 uppercase ml-1">Guruh Nomi</label>
+                    <input placeholder="Masalan: Frontend Foundation" className={`w-full p-4 rounded-2xl outline-none border transition-all focus:border-cyan-500 ${isDark ? 'bg-[#0b1120] border-white/5 text-white' : 'bg-slate-50 border-slate-200'}`} value={formData.name} onChange={e=>setFormData({...formData, name: e.target.value})} required />
+                 </div>
+                 
+                 <div className="flex gap-4">
+                   <div className="w-2/3 space-y-1">
+                      <label className="text-xs font-bold text-slate-500 uppercase ml-1">O'qituvchi</label>
+                      <input placeholder="Ism Familiya" className={`w-full p-4 rounded-2xl outline-none border transition-all focus:border-cyan-500 ${isDark ? 'bg-[#0b1120] border-white/5 text-white' : 'bg-slate-50 border-slate-200'}`} value={formData.teacher} onChange={e=>setFormData({...formData, teacher: e.target.value})} required />
+                   </div>
+                   <div className="w-1/3 space-y-1 relative">
+                      <label className="text-xs font-bold text-slate-500 uppercase ml-1">Ulush (%)</label>
+                      <input type="number" placeholder="50" className={`w-full p-4 rounded-2xl outline-none border font-bold text-center transition-all focus:border-emerald-500 ${isDark ? 'bg-[#0b1120] border-white/5 text-emerald-400' : 'bg-slate-50 border-slate-200 text-emerald-600'}`} value={formData.teacherPercent} onChange={e=>setFormData({...formData, teacherPercent: e.target.value})} />
+                      <span className="absolute right-4 top-9 text-slate-400 font-bold">%</span>
+                   </div>
+                 </div>
+                 
+                 <div className="flex gap-4">
+                    <div className="w-1/2 space-y-1">
+                       <label className="text-xs font-bold text-slate-500 uppercase ml-1">Narx (UZS)</label>
+                       <input type="number" placeholder="1 000 000" className={`w-full p-4 rounded-2xl outline-none border transition-all focus:border-cyan-500 ${isDark ? 'bg-[#0b1120] border-white/5 text-white' : 'bg-slate-50 border-slate-200'}`} value={formData.price} onChange={e=>setFormData({...formData, price: e.target.value})} required />
+                    </div>
+                    <div className="w-1/2 space-y-1">
+                       <label className="text-xs font-bold text-slate-500 uppercase ml-1">Vaqt</label>
+                       <input placeholder="14:00" className={`w-full p-4 rounded-2xl outline-none border transition-all focus:border-cyan-500 ${isDark ? 'bg-[#0b1120] border-white/5 text-white' : 'bg-slate-50 border-slate-200'}`} value={formData.time} onChange={e=>setFormData({...formData, time: e.target.value})} />
+                    </div>
+                 </div>
+
+                 <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-500 uppercase ml-1">Kunlar</label>
+                    <input placeholder="Dush / Chor / Juma" className={`w-full p-4 rounded-2xl outline-none border transition-all focus:border-cyan-500 ${isDark ? 'bg-[#0b1120] border-white/5 text-white' : 'bg-slate-50 border-slate-200'}`} value={formData.days} onChange={e=>setFormData({...formData, days: e.target.value})} />
+                 </div>
+
+                 <div className="flex gap-3 mt-6">
+                    <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-4 bg-slate-500/10 rounded-2xl font-bold hover:bg-slate-500/20 text-slate-500 transition">Bekor</button>
+                    <button type="submit" className="flex-1 py-4 bg-gradient-to-r from-cyan-600 to-blue-600 rounded-2xl font-bold hover:shadow-lg text-white shadow-cyan-500/20 transition transform active:scale-95">Qo'shish</button>
+                 </div>
+              </form>
+           </div>
+        </div>
+      )}
     </div>
   );
 };

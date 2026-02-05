@@ -1,60 +1,227 @@
 import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
-import { TrendingDown, TrendingUp, Calculator, Trash2 } from 'lucide-react';
+import { 
+  Wallet, ArrowUpCircle, ArrowDownCircle, 
+  TrendingUp, TrendingDown, History, X, Plus, Minus 
+} from 'lucide-react';
 
 export const Finance = () => {
-  const { students, payments, addPayment, expenses, addExpense, deleteExpense, groups, stats } = useData();
-  const [activeTab, setActiveTab] = useState('income');
-  const [payForm, setPayForm] = useState({ student: '', amount: '', type: 'Naqd' });
-  const [expForm, setExpForm] = useState({ name: '', amount: '', category: 'Arenda' });
+  const { payments, expenses, addPayment, addExpense, theme } = useData();
+  const isDark = theme === 'dark';
 
-  const handlePay = (e) => { e.preventDefault(); if (!payForm.student || !payForm.amount) return alert("To'ldiring!"); addPayment(payForm); setPayForm({ student: '', amount: '', type: 'Naqd' }); };
-  const handleExp = (e) => { e.preventDefault(); if (!expForm.name || !expForm.amount) return alert("To'ldiring!"); addExpense(expForm); setExpForm({ name: '', amount: '', category: 'Arenda' }); };
+  // State: Modallar uchun
+  const [isIncomeModalOpen, setIsIncomeModalOpen] = useState(false);
+  const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
 
-  const calculateSalary = (groupName, sharePercent) => {
-    if (!sharePercent) return 0;
-    const groupStudentNames = students.filter(s => s.group === groupName).map(s => s.name);
-    const totalGroupRevenue = payments.filter(p => groupStudentNames.includes(p.student)).reduce((acc, curr) => acc + parseInt(curr.amount), 0);
-    return (totalGroupRevenue * (sharePercent / 100));
+  // Forma ma'lumotlari
+  const [amount, setAmount] = useState('');
+  const [reason, setReason] = useState('');
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+
+  // --- STATISTIKA HISOBLASH ---
+  const totalIncome = payments.reduce((sum, p) => sum + (parseInt(p.amount) || 0), 0);
+  const totalExpense = expenses.reduce((sum, e) => sum + (parseInt(e.amount) || 0), 0);
+  const profit = totalIncome - totalExpense;
+
+  // --- KIRIM QILISH ---
+  const handleIncomeSubmit = (e) => {
+    e.preventDefault();
+    if (!amount || !reason) return alert("Summa va Sababni kiriting!");
+
+    addPayment({
+      amount: amount,
+      reason: reason, // Masalan: "Aliyev Validan to'lov" yoki "Investitsiya"
+      date: date,
+      type: 'income',
+      student: reason // Tarixda chiroyli ko'rinishi uchun
+    });
+
+    setIsIncomeModalOpen(false);
+    resetForm();
   };
 
+  // --- CHIQIM QILISH ---
+  const handleExpenseSubmit = (e) => {
+    e.preventDefault();
+    if (!amount || !reason) return alert("Summa va Sababni kiriting!");
+
+    addExpense({
+      amount: amount,
+      category: reason, // Masalan: "Ijara", "Svet", "Reklama"
+      date: date,
+      type: 'expense'
+    });
+
+    setIsExpenseModalOpen(false);
+    resetForm();
+  };
+
+  const resetForm = () => {
+    setAmount('');
+    setReason('');
+    setDate(new Date().toISOString().slice(0, 10));
+  };
+
+  // Hammasini bitta ro'yxatga yig'ib, sanasi bo'yicha saralaymiz
+  const allTransactions = [...(payments || []), ...(expenses || [])]
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+
   return (
-    <div className="p-8">
-      <div className="flex justify-between items-end mb-8">
-        <div><h1 className="text-2xl font-bold text-milk-900">Moliya</h1><p className="text-milk-500">Hisob-kitob markazi</p></div>
-        <div className="flex gap-4">
-           <div className="text-right"><p className="text-xs text-milk-500">Kirim</p><p className="text-lg font-bold text-green-600">{stats.totalRevenue}</p></div>
-           <div className="text-right border-l pl-4 border-milk-200"><p className="text-xs text-milk-500">Chiqim</p><p className="text-lg font-bold text-red-500">{stats.totalExpenses}</p></div>
-           <div className="text-right border-l pl-4 border-milk-200 bg-brand-50 p-2 rounded-lg"><p className="text-xs text-brand-600 font-bold">SOF FOYDA</p><p className="text-xl font-bold text-brand-700">{stats.netProfit}</p></div>
+    <div className={`p-10 min-h-screen pb-24 transition-all duration-300 ${isDark ? 'bg-[#0b1120] text-white' : 'bg-slate-50 text-slate-900'}`}>
+      
+      {/* HEADER & ACTION BUTTONS */}
+      <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
+        <div>
+          <h1 className="text-3xl font-black tracking-tight flex items-center gap-3">
+            <Wallet className="text-cyan-500"/> Moliya
+          </h1>
+          <p className={`text-sm mt-1 font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+            Kirim va chiqimlarni nazorat qilish markazi
+          </p>
+        </div>
+
+        <div className="flex gap-4 w-full md:w-auto">
+          {/* Kirim Tugmasi */}
+          <button 
+            onClick={() => setIsIncomeModalOpen(true)}
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-2xl font-bold bg-emerald-500 text-white shadow-lg shadow-emerald-500/30 hover:bg-emerald-600 transition active:scale-95"
+          >
+            <Plus size={20} strokeWidth={3}/> Kirim
+          </button>
+          {/* Chiqim Tugmasi */}
+          <button 
+            onClick={() => setIsExpenseModalOpen(true)}
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-2xl font-bold bg-rose-500 text-white shadow-lg shadow-rose-500/30 hover:bg-rose-600 transition active:scale-95"
+          >
+            <Minus size={20} strokeWidth={3}/> Chiqim
+          </button>
         </div>
       </div>
 
-      <div className="flex gap-2 mb-6 border-b border-milk-200 pb-1">
-        <button onClick={() => setActiveTab('income')} className={`px-4 py-2 font-bold rounded-t-lg transition ${activeTab === 'income' ? 'bg-green-50 text-green-600 border-b-2 border-green-600' : 'text-milk-400 hover:bg-milk-50'}`}>Kirim</button>
-        <button onClick={() => setActiveTab('expense')} className={`px-4 py-2 font-bold rounded-t-lg transition ${activeTab === 'expense' ? 'bg-red-50 text-red-600 border-b-2 border-red-600' : 'text-milk-400 hover:bg-milk-50'}`}>Chiqim</button>
-        <button onClick={() => setActiveTab('salary')} className={`px-4 py-2 font-bold rounded-t-lg transition ${activeTab === 'salary' ? 'bg-blue-50 text-blue-600 border-b-2 border-blue-600' : 'text-milk-400 hover:bg-milk-50'}`}>Oyliklar</button>
+      {/* STATISTIKA KARTALARI */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+         {/* Kirim */}
+         <div className={`p-6 rounded-[32px] border relative overflow-hidden ${isDark ? 'bg-[#161d31] border-white/5' : 'bg-white border-slate-200 shadow-sm'}`}>
+            <div className="flex items-center gap-3 mb-2 text-emerald-500 font-bold">
+               <ArrowUpCircle size={24}/> Jami Kirim
+            </div>
+            <p className="text-3xl font-black text-emerald-500">
+               +{totalIncome.toLocaleString()}
+            </p>
+         </div>
+
+         {/* Chiqim */}
+         <div className={`p-6 rounded-[32px] border relative overflow-hidden ${isDark ? 'bg-[#161d31] border-white/5' : 'bg-white border-slate-200 shadow-sm'}`}>
+            <div className="flex items-center gap-3 mb-2 text-rose-500 font-bold">
+               <ArrowDownCircle size={24}/> Jami Chiqim
+            </div>
+            <p className="text-3xl font-black text-rose-500">
+               -{totalExpense.toLocaleString()}
+            </p>
+         </div>
+
+         {/* Sof Foyda */}
+         <div className={`p-6 rounded-[32px] border relative overflow-hidden ${isDark ? 'bg-gradient-to-br from-blue-900/20 to-[#161d31] border-blue-500/20' : 'bg-blue-50 border-blue-100 shadow-sm'}`}>
+            <div className="flex items-center gap-3 mb-2 text-blue-500 font-bold">
+               <TrendingUp size={24}/> Sof Foyda
+            </div>
+            <p className={`text-3xl font-black ${profit >= 0 ? 'text-blue-500' : 'text-rose-500'}`}>
+               {profit.toLocaleString()}
+            </p>
+         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {activeTab === 'income' && (
-          <>
-            <div className="bg-white p-6 rounded-2xl border border-milk-200 shadow-soft h-fit"><h3 className="font-bold text-green-700 mb-4 flex items-center gap-2"><TrendingUp size={20}/> To'lov Qabul Qilish</h3><form onSubmit={handlePay} className="space-y-4"><select className="w-full p-3 border rounded-lg bg-white" value={payForm.student} onChange={e => setPayForm({...payForm, student: e.target.value})}><option value="">O'quvchini tanlang</option>{students.map(s => <option key={s.id} value={s.name}>{s.name} ({s.group})</option>)}</select><input type="number" placeholder="Summa" className="w-full p-3 border rounded-lg" value={payForm.amount} onChange={e => setPayForm({...payForm, amount: e.target.value})} /><button className="w-full bg-green-600 text-white py-3 rounded-lg font-bold">Qabul Qilish</button></form></div>
-            <div className="lg:col-span-2 bg-white rounded-2xl border border-milk-200 shadow-soft overflow-hidden"><div className="p-4 bg-milk-50 font-bold text-milk-600 border-b">To'lovlar Tarixi</div><div className="overflow-y-auto max-h-[400px]"><table className="w-full text-sm text-left"><thead className="bg-white text-milk-400 sticky top-0"><tr><th className="p-3">O'quvchi</th><th className="p-3">Summa</th><th className="p-3">Sana</th></tr></thead><tbody>{payments.slice().reverse().map(p => (<tr key={p.id} className="border-b last:border-0 hover:bg-milk-50"><td className="p-3 font-medium">{p.student}</td><td className="p-3 text-green-600 font-bold">+{parseInt(p.amount).toLocaleString()}</td><td className="p-3 text-milk-400 text-xs">{p.date}</td></tr>))}</tbody></table></div></div>
-          </>
-        )}
-        {activeTab === 'expense' && (
-          <>
-            <div className="bg-white p-6 rounded-2xl border border-milk-200 shadow-soft h-fit"><h3 className="font-bold text-red-600 mb-4 flex items-center gap-2"><TrendingDown size={20}/> Harajat Qilish</h3><form onSubmit={handleExp} className="space-y-4"><input placeholder="Nomi" className="w-full p-3 border rounded-lg" value={expForm.name} onChange={e => setExpForm({...expForm, name: e.target.value})} /><input type="number" placeholder="Summa" className="w-full p-3 border rounded-lg" value={expForm.amount} onChange={e => setExpForm({...expForm, amount: e.target.value})} /><select className="w-full p-3 border rounded-lg bg-white" value={expForm.category} onChange={e => setExpForm({...expForm, category: e.target.value})}><option>Arenda</option><option>Kommunal</option><option>Marketing</option><option>Oylik</option><option>Boshqa</option></select><button className="w-full bg-red-500 text-white py-3 rounded-lg font-bold">Chiqim Qilish</button></form></div>
-            <div className="lg:col-span-2 bg-white rounded-2xl border border-milk-200 shadow-soft overflow-hidden"><div className="p-4 bg-milk-50 font-bold text-milk-600 border-b">Harajatlar Tarixi</div><div className="overflow-y-auto max-h-[400px]"><table className="w-full text-sm text-left"><thead className="bg-white text-milk-400 sticky top-0"><tr><th className="p-3">Nomi</th><th className="p-3">Kategoriya</th><th className="p-3">Summa</th><th className="p-3"></th></tr></thead><tbody>{expenses.length === 0 ? <tr><td colSpan="4" className="p-4 text-center text-milk-400">Harajat yo'q</td></tr> : expenses.slice().reverse().map(e => (<tr key={e.id} className="border-b last:border-0 hover:bg-milk-50"><td className="p-3 font-medium">{e.name}</td><td className="p-3 text-milk-500 text-xs bg-milk-100 rounded px-2 w-min">{e.category}</td><td className="p-3 text-red-500 font-bold">-{parseInt(e.amount).toLocaleString()}</td><td className="p-3 text-right"><button onClick={()=>deleteExpense(e.id)} className="text-milk-300 hover:text-red-500"><Trash2 size={16}/></button></td></tr>))}</tbody></table></div></div>
-          </>
-        )}
-        {activeTab === 'salary' && (
-          <div className="col-span-3 bg-white p-6 rounded-2xl border border-milk-200 shadow-soft">
-             <div className="flex items-center gap-2 mb-6"><div className="p-2 bg-blue-100 text-blue-600 rounded-lg"><Calculator size={24}/></div><div><h3 className="font-bold text-milk-900">O'qituvchilar Oyligi</h3><p className="text-xs text-milk-500">Avtomatik hisoblash</p></div></div>
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{groups.map(g => { const salary = calculateSalary(g.name, g.teacherShare); return (<div key={g.id} className="border border-milk-200 rounded-xl p-4 hover:shadow-md transition bg-milk-50/50"><div className="flex justify-between items-start mb-2"><h4 className="font-bold text-milk-900">{g.name}</h4><span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-bold">{g.teacherShare || 0}% ulush</span></div><p className="text-sm text-milk-500 mb-4">O'qituvchi: <span className="text-milk-900 font-medium">{g.teacher}</span></p><div className="border-t border-milk-200 pt-3 flex justify-between items-center"><span className="text-xs text-milk-500">Jami oylik:</span><span className="font-bold text-xl text-blue-600">{salary.toLocaleString()} <span className="text-xs">UZS</span></span></div></div>)})}</div>
-          </div>
-        )}
+      {/* TARIX JADVALI */}
+      <div className={`rounded-[32px] border overflow-hidden shadow-sm ${isDark ? 'bg-[#161d31] border-white/5' : 'bg-white border-slate-200'}`}>
+         <div className={`p-6 border-b font-bold flex items-center gap-2 ${isDark ? 'border-white/5 bg-white/5' : 'border-slate-100 bg-slate-50'}`}>
+            <History size={20}/> So'nggi Operatsiyalar
+         </div>
+         
+         {allTransactions.length > 0 ? (
+           <table className="w-full text-left">
+             <thead className={`text-xs uppercase border-b ${isDark ? 'border-white/5 text-slate-500' : 'border-slate-100 text-slate-400'}`}>
+               <tr>
+                 <th className="p-6">Sana</th>
+                 <th className="p-6">Sabab / Kategoriya</th>
+                 <th className="p-6">Tur</th>
+                 <th className="p-6 text-right">Summa</th>
+               </tr>
+             </thead>
+             <tbody className={`divide-y ${isDark ? 'divide-white/5' : 'divide-slate-100'}`}>
+               {allTransactions.map((item) => (
+                 <tr key={item.id} className={`transition ${isDark ? 'hover:bg-white/5' : 'hover:bg-slate-50'}`}>
+                   <td className={`p-6 font-mono text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{item.date}</td>
+                   
+                   <td className="p-6 font-bold">
+                      {item.student || item.category || item.reason || "Izohsiz"}
+                   </td>
+                   
+                   <td className="p-6">
+                     <span className={`px-3 py-1 rounded-lg text-xs font-bold flex items-center w-fit gap-1 ${item.type === 'income' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                       {item.type === 'income' ? <ArrowUpCircle size={14}/> : <ArrowDownCircle size={14}/>}
+                       {item.type === 'income' ? 'Kirim' : 'Chiqim'}
+                     </span>
+                   </td>
+                   
+                   <td className={`p-6 text-right font-black text-lg ${item.type === 'income' ? 'text-emerald-500' : 'text-rose-500'}`}>
+                     {item.type === 'income' ? '+' : '-'}{parseInt(item.amount).toLocaleString()}
+                   </td>
+                 </tr>
+               ))}
+             </tbody>
+           </table>
+         ) : (
+           <div className={`p-20 text-center ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+             <Wallet size={48} className="mx-auto mb-4 opacity-50"/>
+             <p>Hozircha moliyaviy operatsiyalar yo'q</p>
+           </div>
+         )}
       </div>
+
+      {/* 🟢 KIRIM MODALI */}
+      {isIncomeModalOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in">
+           <div className={`w-full max-w-md p-8 rounded-[32px] border shadow-2xl scale-100 animate-in zoom-in-95 ${isDark ? 'bg-[#161d31] border-white/10' : 'bg-white'}`}>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className={`text-2xl font-bold text-emerald-500 flex items-center gap-2`}>
+                   <ArrowUpCircle /> Kirim qilish
+                </h2>
+                <button onClick={() => setIsIncomeModalOpen(false)} className="text-slate-400 hover:text-rose-500"><X /></button>
+              </div>
+              
+              <form onSubmit={handleIncomeSubmit} className="space-y-4">
+                 <input type="number" placeholder="Summa (UZS)" className={`w-full p-4 rounded-2xl outline-none border font-bold text-lg ${isDark ? 'bg-[#0b1120] border-white/5 text-white' : 'bg-slate-50 border-slate-200'}`} value={amount} onChange={e => setAmount(e.target.value)} required />
+                 <input placeholder="Sabab (Masalan: Kurs uchun to'lov)" className={`w-full p-4 rounded-2xl outline-none border ${isDark ? 'bg-[#0b1120] border-white/5 text-white' : 'bg-slate-50 border-slate-200'}`} value={reason} onChange={e => setReason(e.target.value)} required />
+                 <input type="date" className={`w-full p-4 rounded-2xl outline-none border ${isDark ? 'bg-[#0b1120] border-white/5 text-white' : 'bg-slate-50 border-slate-200'}`} value={date} onChange={e => setDate(e.target.value)} required />
+                 
+                 <button type="submit" className="w-full py-4 rounded-2xl font-bold bg-emerald-500 text-white shadow-lg shadow-emerald-500/30 hover:bg-emerald-600 transition active:scale-95">Saqlash</button>
+              </form>
+           </div>
+        </div>
+      )}
+
+      {/* 🔴 CHIQIM MODALI */}
+      {isExpenseModalOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in">
+           <div className={`w-full max-w-md p-8 rounded-[32px] border shadow-2xl scale-100 animate-in zoom-in-95 ${isDark ? 'bg-[#161d31] border-white/10' : 'bg-white'}`}>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className={`text-2xl font-bold text-rose-500 flex items-center gap-2`}>
+                   <ArrowDownCircle /> Chiqim qilish
+                </h2>
+                <button onClick={() => setIsExpenseModalOpen(false)} className="text-slate-400 hover:text-rose-500"><X /></button>
+              </div>
+              
+              <form onSubmit={handleExpenseSubmit} className="space-y-4">
+                 <input type="number" placeholder="Summa (UZS)" className={`w-full p-4 rounded-2xl outline-none border font-bold text-lg ${isDark ? 'bg-[#0b1120] border-white/5 text-white' : 'bg-slate-50 border-slate-200'}`} value={amount} onChange={e => setAmount(e.target.value)} required />
+                 <input placeholder="Sabab (Masalan: Ijara, Svet)" className={`w-full p-4 rounded-2xl outline-none border ${isDark ? 'bg-[#0b1120] border-white/5 text-white' : 'bg-slate-50 border-slate-200'}`} value={reason} onChange={e => setReason(e.target.value)} required />
+                 <input type="date" className={`w-full p-4 rounded-2xl outline-none border ${isDark ? 'bg-[#0b1120] border-white/5 text-white' : 'bg-slate-50 border-slate-200'}`} value={date} onChange={e => setDate(e.target.value)} required />
+                 
+                 <button type="submit" className="w-full py-4 rounded-2xl font-bold bg-rose-500 text-white shadow-lg shadow-rose-500/30 hover:bg-rose-600 transition active:scale-95">Saqlash</button>
+              </form>
+           </div>
+        </div>
+      )}
+
     </div>
   );
 };

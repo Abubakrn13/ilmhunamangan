@@ -1,101 +1,71 @@
-import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import React from 'react';
+import { NavLink } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { 
-  LayoutDashboard, Users, Layers, Wallet, 
-  CalendarCheck, Settings, LogOut, Tv, UserCircle 
+  LayoutDashboard, Users, UserPlus, Layers, 
+  Briefcase, // 👈 O'qituvchi ikonkasini import qildik
+  Wallet, CalendarCheck, Settings, LogOut, Trophy 
 } from 'lucide-react';
 
 export const Sidebar = () => {
-  const { storeName, logout, currentUser } = useData();
-  const location = useLocation();
-  const [isHovered, setIsHovered] = useState(false);
+  const { logout, storeName, theme } = useData();
+  const isDark = theme === 'dark';
 
-  const menuItems = [
-    { icon: LayoutDashboard, label: "Dashboard", path: "/" },
-
-    { icon: Users, label: "O'quvchilar", path: "/students" },
-    { icon: Layers, label: "Guruhlar", path: "/groups" },
-    { icon: CalendarCheck, label: "Davomat", path: "/attendance" },
-    { icon: Wallet, label: "Moliya", path: "/finance" },
-    { icon: Tv, label: "Reyting (TV)", path: "/leaderboard" },
-    { icon: Settings, label: "Sozlamalar", path: "/settings" },
+  const links = [
+    { path: '/', icon: <LayoutDashboard size={24} />, label: "Boshqaruv" },
+    { path: '/students', icon: <Users size={24} />, label: "O'quvchilar" },
+    { path: '/leads', icon: <UserPlus size={24} />, label: "Lidlar" },
+    { path: '/groups', icon: <Layers size={24} />, label: "Guruhlar" },
+    
+    // 👇 MANA SHU QATORNI QO'SHING
+    { path: '/teachers', icon: <Briefcase size={24} />, label: "O'qituvchilar" },
+    
+    { path: '/finance', icon: <Wallet size={24} />, label: "Moliya" },
+    { path: '/attendance', icon: <CalendarCheck size={24} />, label: "Davomat" },
+    { path: '/champions', icon: <Trophy size={24} />, label: "Chempionlar" },
+    { path: '/settings', icon: <Settings size={24} />, label: "Sozlamalar" },
   ];
 
+  // ... (Qolgan kod o'zgarmaydi) ...
   return (
-    <>
-
-      <div className="w-20 h-screen bg-transparent shrink-0 hidden md:block transition-all duration-300" />
-
-
-      <div 
-        className={`fixed top-0 left-0 h-screen bg-white dark:bg-slate-800 border-r border-milk-200 dark:border-slate-700 flex flex-col justify-between transition-all duration-300 z-50 shadow-2xl ${isHovered ? 'w-72' : 'w-20'}`}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-      >
-        
-
-        <div className="p-5 flex items-center gap-4 overflow-hidden whitespace-nowrap h-20">
-          <div className="w-10 h-10 min-w-[2.5rem] bg-brand-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-brand-500/30">
-            E
-          </div>
-          <div className={`transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
-            <h1 className="font-bold text-xl text-milk-900 dark:text-white tracking-tight">EduCore</h1>
-            <p className="text-xs text-milk-500 dark:text-slate-400 font-medium truncate w-32">{storeName}</p>
-          </div>
+    <div className={`fixed left-0 top-0 h-screen z-50 flex flex-col border-r transition-all duration-500 ease-in-out group w-20 hover:w-72 ${isDark ? 'bg-[#161d31] border-white/5' : 'bg-white border-slate-200'}`}>
+      
+      {/* Logo */}
+      <div className="h-24 flex items-center justify-center relative flex-shrink-0">
+        <div className="w-10 h-10 bg-cyan-500 rounded-xl flex items-center justify-center text-white font-black text-xl shadow-lg shadow-cyan-500/30 absolute transition-all duration-300 group-hover:opacity-0 group-hover:scale-0">
+          {(storeName || 'E').charAt(0)}
         </div>
-
-        <nav className="flex-1 px-3 space-y-2 overflow-x-hidden py-4 custom-scrollbar hover:overflow-y-auto">
-          {menuItems.map((item) => {
-            const isActive = location.pathname === item.path;
-            return (
-              <Link 
-                key={item.path} 
-                to={item.path}
-                className={`flex items-center gap-4 px-3 py-3 rounded-xl transition-all duration-200 group whitespace-nowrap
-                  ${isActive 
-                    ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 font-bold shadow-sm' 
-                    : 'text-milk-500 dark:text-slate-400 hover:bg-milk-50 dark:hover:bg-slate-700 hover:text-milk-900 dark:hover:text-white'
-                  }
-                `}
-              >
-                <item.icon size={24} className={`min-w-[24px] ${isActive ? "text-brand-600 dark:text-brand-400" : "group-hover:text-milk-900 dark:group-hover:text-white transition-colors"}`} />
-                
-                <span className={`transition-all duration-300 ${isHovered ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 hidden'}`}>
-                  {item.label}
-                </span>
-                
-                {isActive && isHovered && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-brand-600 dark:bg-brand-400 animate-pulse"></div>}
-              </Link>
-            )
-          })}
-        </nav>
-
-
-        <div className="p-4 border-t border-milk-100 dark:border-slate-700 overflow-hidden whitespace-nowrap bg-white dark:bg-slate-800">
-          {isHovered && (
-            <div className="flex items-center gap-3 mb-4 p-3 bg-milk-50 dark:bg-slate-700/50 rounded-xl animate-in fade-in slide-in-from-bottom-2">
-              <div className="w-10 h-10 rounded-full bg-brand-100 dark:bg-slate-600 flex items-center justify-center text-brand-600 dark:text-white">
-                <UserCircle size={24} />
-              </div>
-              <div>
-                <p className="font-bold text-sm text-milk-900 dark:text-white truncate w-32">{currentUser?.username || "Admin"}</p>
-                <p className="text-[10px] uppercase font-bold text-milk-400 dark:text-slate-400">Administrator</p>
-              </div>
-            </div>
-          )}
-          <button 
-            onClick={logout}
-            className={`flex items-center gap-4 w-full px-3 py-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition font-medium hover:shadow-sm ${!isHovered && 'justify-center'}`}
-            title="Chiqish"
-          >
-            <LogOut size={24} className="min-w-[24px]" />
-            <span className={`transition-all duration-300 ${isHovered ? 'opacity-100' : 'opacity-0 hidden'}`}>
-              Chiqish
-            </span>
-          </button>
-        </div>
+        <h1 className="text-2xl font-black text-cyan-500 tracking-tighter absolute opacity-0 scale-50 group-hover:opacity-100 group-hover:scale-100 transition-all duration-500 delay-100 whitespace-nowrap">
+          {storeName || 'EDUCORE'}
+        </h1>
       </div>
-    </>
+
+      {/* Menu */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden py-6 space-y-2 custom-scrollbar">
+        {links.map((link) => (
+          <NavLink
+            key={link.path}
+            to={link.path}
+            className={({ isActive }) => `
+              relative flex items-center h-14 px-4 mx-3 rounded-2xl transition-all duration-300 font-bold overflow-hidden whitespace-nowrap
+              ${isActive 
+                ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/30' 
+                : isDark ? 'text-slate-400 hover:bg-white/5 hover:text-white' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'}
+            `}
+          >
+            <span className="min-w-[24px] flex justify-center">{link.icon}</span>
+            <span className="ml-4 opacity-0 -translate-x-10 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-500 delay-75">{link.label}</span>
+          </NavLink>
+        ))}
+      </div>
+
+      {/* Footer */}
+      <div className="p-3 mt-auto relative flex-shrink-0">
+        <button onClick={logout} className={`w-full flex items-center h-14 px-4 rounded-2xl font-bold transition-all duration-300 overflow-hidden whitespace-nowrap ${isDark ? 'text-rose-500 hover:bg-rose-500/10' : 'text-rose-600 hover:bg-rose-50'}`}>
+          <span className="min-w-[24px] flex justify-center"><LogOut size={24} /></span>
+          <span className="ml-4 opacity-0 -translate-x-10 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-500 delay-75">Chiqish</span>
+        </button>
+      </div>
+    </div>
   );
 };

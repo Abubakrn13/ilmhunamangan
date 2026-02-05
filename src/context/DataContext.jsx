@@ -2,240 +2,131 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 
 const DataContext = createContext();
 
-const VALID_USERS = [
-  { username: "IlmHubNamangan", password: "IlmHub123", centerName: "IlmHub Namangan" },
-  { username: "EduPro", password: "EduPro2024", centerName: "Edu Pro Center" },
-  { username: "Admin", password: "123", centerName: "My Learning Center" }
-];
-
 export const DataProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(() => {
     try {
       const saved = localStorage.getItem('educore_current_user');
       return saved ? JSON.parse(saved) : null;
-    } catch { return null; }
+    } catch (e) { return null; }
   });
 
-  // --- MA'LUMOTNI YUKLASH ---
-  const loadData = (key) => {
-    if (!currentUser) return [];
-    const saved = localStorage.getItem(`${currentUser.username}_${key}`);
-    return saved ? JSON.parse(saved) : [];
-  };
-
-  const [students, setStudents] = useState(() => loadData('students'));
-  const [groups, setGroups] = useState(() => loadData('groups'));
-  const [payments, setPayments] = useState(() => loadData('payments'));
-  const [expenses, setExpenses] = useState(() => loadData('expenses'));
-  const [attendance, setAttendance] = useState(() => loadData('attendance'));
-  
-  const [storeName, setStoreName] = useState(() => {
-    if (!currentUser) return 'EduCore';
-    return localStorage.getItem(`${currentUser.username}_storeName`) || currentUser.centerName;
-  });
   const [theme, setTheme] = useState(() => localStorage.getItem('educore_theme') || 'light');
-  const [notifications, setNotifications] = useState([]);
+  const [storeName, setStoreName] = useState('EduCore');
 
-  // --- BAZAGA SAQLASH ---
-  const saveToDB = (key, data) => {
+  const [students, setStudents] = useState([]);
+  const [groups, setGroups] = useState([]);
+  const [leads, setLeads] = useState([]);
+  const [payments, setPayments] = useState([]);
+  const [expenses, setExpenses] = useState([]);
+  const [attendance, setAttendance] = useState([]);
+
+  useEffect(() => {
+    if (currentUser) {
+      const load = (key) => {
+        try {
+          const item = localStorage.getItem(`${currentUser.username}_${key}`);
+          return item ? JSON.parse(item) : [];
+        } catch { return []; }
+      };
+
+      setStudents(load('students'));
+      setGroups(load('groups'));
+      setLeads(load('leads'));
+      setPayments(load('payments'));
+      setExpenses(load('expenses'));
+      setAttendance(load('attendance'));
+      
+      const savedName = localStorage.getItem(`${currentUser.username}_storeName`);
+      if (savedName) setStoreName(savedName);
+    } else {
+      setStudents([]); setGroups([]); setLeads([]); setPayments([]); setExpenses([]); setAttendance([]);
+    }
+  }, [currentUser]);
+
+  const saveData = (key, data) => {
     if (currentUser) {
       localStorage.setItem(`${currentUser.username}_${key}`, JSON.stringify(data));
     }
   };
 
-  // --- ASOSIY FUNKSIYALAR ---
-  const getTodayISO = () => new Date().toISOString().split('T')[0]; // "2026-01-27"
+  // --- CRUD FUNKSIYALARI ---
 
-  const addStudent = (s) => {
-    const newList = [...students, { ...s, id: Date.now(), nextPaymentDate: null, score: 0 }];
-    setStudents(newList); saveToDB('students', newList);
-    if(s.group) {
-        const newGroups = groups.map(g => g.name === s.group ? { ...g, studentsCount: (g.studentsCount || 0) + 1 } : g);
-        setGroups(newGroups); saveToDB('groups', newGroups);
-    }
-  };
-  
-  const deleteStudent = (id) => {
-    const s = students.find(s => s.id === id);
-    const newList = students.filter(x => x.id !== id);
-    setStudents(newList); saveToDB('students', newList);
-    if(s && s.group) {
-        const newGroups = groups.map(g => g.name === s.group ? { ...g, studentsCount: Math.max(0, (g.studentsCount || 0) - 1) } : g);
-        setGroups(newGroups); saveToDB('groups', newGroups);
-    }
+  const login = (username, password) => {
+    const user = { username: username || "Admin", centerName: "EduCore" };
+    localStorage.setItem('educore_current_user', JSON.stringify(user));
+    setCurrentUser(user);
+    return true;
   };
 
-  const changeStudentGroup = (studentId, newGroupName) => {
-    const student = students.find(s => s.id === studentId);
-    if (!student || student.group === newGroupName) return;
-    const oldGroupName = student.group;
-    const newStudents = students.map(s => s.id === studentId ? { ...s, group: newGroupName } : s);
-    setStudents(newStudents); saveToDB('students', newStudents);
-    const newGroups = groups.map(g => {
-        if (g.name === oldGroupName) return { ...g, studentsCount: Math.max(0, (g.studentsCount || 0) - 1) };
-        if (g.name === newGroupName) return { ...g, studentsCount: (g.studentsCount || 0) + 1 };
-        return g;
-    });
-    setGroups(newGroups); saveToDB('groups', newGroups);
+  const logout = () => {
+    localStorage.removeItem('educore_current_user');
+    setCurrentUser(null);
   };
-
-  const addGroup = (g) => { const n = [...groups, { ...g, id: Date.now(), studentsCount: 0 }]; setGroups(n); saveToDB('groups', n); };
-  const deleteGroup = (id) => { const n = groups.filter(g => g.id !== id); setGroups(n); saveToDB('groups', n); };
-  
-  // TO'LOV QO'SHISH
-  const addPayment = (p) => {
-    const newPayments = [...payments, { 
-        ...p, 
-        id: Date.now(), 
-        date: getTodayISO() // 2026-01-27
-    }];
-    setPayments(newPayments); saveToDB('payments', newPayments);
-
-    const s = students.find(x => x.name === p.student);
-    const g = groups.find(x => x.name === s?.group);
-    
-    if (s && g) {
-      const daily = parseInt(g.price)/30; 
-      const days = Math.floor(parseInt(p.amount)/daily);
-      let currentDueDate = s.nextPaymentDate ? new Date(s.nextPaymentDate) : new Date();
-      if (currentDueDate < new Date()) currentDueDate = new Date();
-      
-      currentDueDate.setDate(currentDueDate.getDate() + days);
-      
-      const newStudents = students.map(x => x.id === s.id ? { 
-          ...x, 
-          status: 'active', 
-          nextPaymentDate: currentDueDate.toISOString().split('T')[0], 
-          score: (x.score || 0) + 50 
-      } : x);
-      
-      setStudents(newStudents); saveToDB('students', newStudents);
-      alert(`${days} kun qo'shildi!`);
-    }
-  };
-  
-  // XARAJAT QO'SHISH
-  const addExpense = (e) => { 
-      const n = [...expenses, { ...e, id: Date.now(), date: getTodayISO() }]; 
-      setExpenses(n); saveToDB('expenses', n); 
-  };
-  
-  const deleteExpense = (id) => { const n = expenses.filter(e => e.id !== id); setExpenses(n); saveToDB('expenses', n); };
-  
-  const markAttendance = (d, g, sId, st) => { 
-      const n = [...attendance.filter(a => !(a.date === d && a.studentId === sId)), { date: d, groupId: g, studentId: sId, status: st }]; 
-      setAttendance(n); saveToDB('attendance', n); 
-  };
-  
-  const giveBonus = (id, p) => { const n = students.map(s => s.id === id ? { ...s, score: (s.score || 0) + p } : s); setStudents(n); saveToDB('students', n); };
 
   const toggleTheme = () => {
     const newTheme = theme === 'light' ? 'dark' : 'light';
-    setTheme(newTheme); localStorage.setItem('educore_theme', newTheme);
-    if (newTheme === 'dark') document.documentElement.classList.add('dark'); else document.documentElement.classList.remove('dark');
+    setTheme(newTheme);
+    localStorage.setItem('educore_theme', newTheme);
   };
-  useEffect(() => { if (theme === 'dark') document.documentElement.classList.add('dark'); }, []);
-  useEffect(() => { if (currentUser) localStorage.setItem(`${currentUser.username}_storeName`, storeName); }, [storeName]);
-  useEffect(() => { const t = getTodayISO(); setNotifications(students.filter(s => s.nextPaymentDate && s.nextPaymentDate <= t)); }, [students]);
 
-  const login = (u, p) => {
-    const found = VALID_USERS.find(user => user.username === u && user.password === p);
-    if (found) { localStorage.setItem('educore_current_user', JSON.stringify(found)); window.location.href = "/"; return true; }
-    return false;
+  const updateStoreName = (name) => {
+    setStoreName(name);
+    if (currentUser) localStorage.setItem(`${currentUser.username}_storeName`, name);
   };
-  const logout = () => { localStorage.removeItem('educore_current_user'); window.location.href = "/"; };
-  const resetSystem = () => { if(window.confirm("Barcha ma'lumotlar o'chadi!")) { const u = currentUser.username; localStorage.removeItem(`${u}_students`); localStorage.removeItem(`${u}_groups`); localStorage.removeItem(`${u}_payments`); localStorage.removeItem(`${u}_attendance`); localStorage.removeItem(`${u}_expenses`); localStorage.removeItem(`${u}_storeName`); window.location.reload(); } };
 
-  // ================================================
-  // 🔥 MOLIYA MANTIQI (TUZATILDI)
-  // ================================================
+  // 🔥 YANGI: TIZIMNI RESET QILISH
+  const resetSystem = () => {
+    const empty = [];
+    setStudents(empty); saveData('students', empty);
+    setGroups(empty); saveData('groups', empty);
+    setLeads(empty); saveData('leads', empty);
+    setPayments(empty); saveData('payments', empty);
+    setExpenses(empty); saveData('expenses', empty);
+    setAttendance(empty); saveData('attendance', empty);
+  };
+
+  // Boshqa barcha funksiyalar (Add, Delete, Update...)
+  const addStudent = (s) => { const n = [...students, { ...s, id: Date.now(), score: 0, pointHistory: [], joinedDate: new Date().toISOString().slice(0,10) }]; setStudents(n); saveData('students', n); };
+  const updateStudent = (u) => { const n = students.map(s => s.id === u.id ? u : s); setStudents(n); saveData('students', n); };
+  const deleteStudent = (id) => { const n = students.filter(s => s.id !== id); setStudents(n); saveData('students', n); };
   
-  const today = new Date();
-  const currentMonthStr = today.toISOString().slice(0, 7); // "2026-01"
+  const giveBonus = (studentId, points, reason) => {
+    const pts = parseInt(points);
+    const updated = students.map(s => s.id === studentId ? { ...s, score: (parseInt(s.score)||0) + pts, pointHistory: [...(s.pointHistory||[]), { date: new Date().toISOString().slice(0,10), points: pts, reason }] } : s);
+    setStudents(updated); saveData('students', updated);
+  };
 
-  // 1. JORIY OY (Dashboard tepasi uchun)
-  const thisMonthPayments = payments.filter(p => p.date && p.date.startsWith(currentMonthStr));
-  const thisMonthExpenses = expenses.filter(e => e.date && e.date.startsWith(currentMonthStr));
+  const addGroup = (g) => { const n = [...groups, { ...g, id: Date.now() }]; setGroups(n); saveData('groups', n); };
+  const updateGroup = (u) => { const n = groups.map(g => g.id === u.id ? u : g); setGroups(n); saveData('groups', n); };
+  const deleteGroup = (id) => { const n = groups.filter(g => g.id !== id); setGroups(n); saveData('groups', n); };
 
-  const monthRev = thisMonthPayments.reduce((a,c)=>a+parseInt(c.amount||0),0);
-  const monthExp = thisMonthExpenses.reduce((a,c)=>a+parseInt(c.amount||0),0);
+  const addLead = (l) => { const n = [...leads, { ...l, id: Date.now(), date: new Date().toISOString().slice(0,10) }]; setLeads(n); saveData('leads', n); };
+  const deleteLead = (id) => { const n = leads.filter(l => l.id !== id); setLeads(n); saveData('leads', n); };
 
-  // 2. JAMI TARIX
-  const allTimeRev = payments.reduce((a,c)=>a+parseInt(c.amount||0),0);
-  const allTimeExp = expenses.reduce((a,c)=>a+parseInt(c.amount||0),0);
+  const addPayment = (p) => { const n = [...payments, { ...p, id: Date.now(), type: 'income' }]; setPayments(n); saveData('payments', n); if (p.studentId) giveBonus(p.studentId, 50, "To'lov bonusi"); };
+  const addExpense = (e) => { const n = [...expenses, { ...e, id: Date.now(), type: 'expense' }]; setExpenses(n); saveData('expenses', n); };
 
-  // 3. 🔥 TARIX JADVALI (FAQAT O'TGAN OYLAR)
-  const getHistory = () => {
-    const history = {};
-    
-    // To'lovlarni yig'amiz
-    payments.forEach(p => {
-        if (!p.date) return;
-        const [year, month] = p.date.split('-'); 
-        const key = `${year}-${month}`; // "2026-01"
-
-        // 🔥 MUHIM: Agar bu oy "Hozirgi oy" bo'lsa, uni tarixga qo'shmaymiz!
-        if (key === currentMonthStr) return;
-
-        if (!history[key]) history[key] = { rev: 0, exp: 0 };
-        history[key].rev += parseInt(p.amount || 0);
-    });
-
-    // Xarajatlarni yig'amiz
-    expenses.forEach(e => {
-        if (!e.date) return;
-        const [year, month] = e.date.split('-');
-        const key = `${year}-${month}`;
-
-        // 🔥 Xuddi shu narsa: Hozirgi oyni o'tkazib yuboramiz
-        if (key === currentMonthStr) return;
-
-        if (!history[key]) history[key] = { rev: 0, exp: 0 };
-        history[key].exp += parseInt(e.amount || 0);
-    });
-
-    // Jadvalga aylantiramiz
-    return Object.entries(history).map(([key, val]) => {
-        const [year, month] = key.split('-');
-        const monthIndex = parseInt(month) - 1;
-        const monthName = ['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'][monthIndex];
-        
-        return {
-            date: `${year}-yil, ${monthName}`,
-            revenue: val.rev,
-            expense: val.exp,
-            profit: val.rev - val.exp,
-            sortKey: key
-        };
-    }).sort((a,b) => b.sortKey.localeCompare(a.sortKey)); // Eng yangisi tepada
+  const markAttendance = (date, groupId, studentId, status) => {
+    const clean = attendance.filter(a => !(a.date === date && a.studentId === studentId && a.groupId === groupId));
+    const n = [...clean, { date, groupId, studentId, status }];
+    setAttendance(n); saveData('attendance', n);
+    if (status === 'present') giveBonus(studentId, 5, "Davomat bonusi");
   };
 
   return (
-    <DataContext.Provider value={{ 
-      students, addStudent, deleteStudent, changeStudentGroup,
-      groups, addGroup, deleteGroup,
-      payments, addPayment, expenses, addExpense, deleteExpense,
-      attendance, markAttendance, notifications,
-      giveBonus, 
-      storeName, setStoreName, resetSystem, currentUser, login, logout, theme, toggleTheme,
-      getHistory, 
-      stats: { 
-        totalStudents: students.length, 
-        
-        // JORIY OY (Faqat tepada ko'rinadi)
-        monthRevenue: monthRev.toLocaleString()+" UZS", 
-        monthExpenses: monthExp.toLocaleString()+" UZS", 
-        monthProfit: (monthRev - monthExp).toLocaleString()+" UZS",
-
-        // JAMI
-        allTimeRevenue: allTimeRev.toLocaleString()+" UZS",
-        allTimeProfit: (allTimeRev - allTimeExp).toLocaleString()+" UZS",
-
-        debtors: notifications.length 
-      }
+    <DataContext.Provider value={{
+      currentUser, login, logout,
+      theme, toggleTheme, storeName, setStoreName: updateStoreName,
+      resetSystem, // 👈 RESET FUNKSIYASI EXPORT QILINDI
+      students, addStudent, updateStudent, deleteStudent, giveBonus,
+      groups, addGroup, updateGroup, deleteGroup,
+      leads, addLead, deleteLead,
+      payments, addPayment, expenses, addExpense,
+      attendance, markAttendance
     }}>
       {children}
     </DataContext.Provider>
   );
 };
+
 export const useData = () => useContext(DataContext);
