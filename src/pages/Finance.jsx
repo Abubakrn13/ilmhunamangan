@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
 import { 
   Wallet, ArrowUpCircle, ArrowDownCircle, 
-  TrendingUp, TrendingDown, History, X, Plus, Minus 
+  TrendingUp, History, X, Plus, Minus 
 } from 'lucide-react';
 
 export const Finance = () => {
@@ -30,10 +30,10 @@ export const Finance = () => {
 
     addPayment({
       amount: amount,
-      reason: reason, // Masalan: "Aliyev Validan to'lov" yoki "Investitsiya"
+      reason: reason,
       date: date,
       type: 'income',
-      student: reason // Tarixda chiroyli ko'rinishi uchun
+      student: reason
     });
 
     setIsIncomeModalOpen(false);
@@ -47,7 +47,7 @@ export const Finance = () => {
 
     addExpense({
       amount: amount,
-      category: reason, // Masalan: "Ijara", "Svet", "Reklama"
+      category: reason,
       date: date,
       type: 'expense'
     });
@@ -62,7 +62,6 @@ export const Finance = () => {
     setDate(new Date().toISOString().slice(0, 10));
   };
 
-  // Hammasini bitta ro'yxatga yig'ib, sanasi bo'yicha saralaymiz
   const allTransactions = [...(payments || []), ...(expenses || [])]
     .sort((a, b) => new Date(b.date) - new Date(a.date));
 
@@ -81,14 +80,12 @@ export const Finance = () => {
         </div>
 
         <div className="flex gap-4 w-full md:w-auto">
-          {/* Kirim Tugmasi */}
           <button 
             onClick={() => setIsIncomeModalOpen(true)}
             className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-2xl font-bold bg-emerald-500 text-white shadow-lg shadow-emerald-500/30 hover:bg-emerald-600 transition active:scale-95"
           >
             <Plus size={20} strokeWidth={3}/> Kirim
           </button>
-          {/* Chiqim Tugmasi */}
           <button 
             onClick={() => setIsExpenseModalOpen(true)}
             className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-2xl font-bold bg-rose-500 text-white shadow-lg shadow-rose-500/30 hover:bg-rose-600 transition active:scale-95"
@@ -131,51 +128,56 @@ export const Finance = () => {
          </div>
       </div>
 
-      {/* TARIX JADVALI */}
-      <div className={`rounded-[32px] border overflow-hidden shadow-sm ${isDark ? 'bg-[#161d31] border-white/5' : 'bg-white border-slate-200'}`}>
-         <div className={`p-6 border-b font-bold flex items-center gap-2 ${isDark ? 'border-white/5 bg-white/5' : 'border-slate-100 bg-slate-50'}`}>
-            <History size={20}/> So'nggi Operatsiyalar
+      {/* 🔥 TARIX JADVALI (SCROLLABLE & FIXED HEIGHT) */}
+      <div className={`rounded-[32px] border shadow-sm flex flex-col h-[600px] ${isDark ? 'bg-[#161d31] border-white/5' : 'bg-white border-slate-200'}`}>
+         
+         {/* Header qismi qotirilgan (fixed) */}
+         <div className={`p-6 border-b font-bold flex items-center gap-2 shrink-0 ${isDark ? 'border-white/5 bg-white/5' : 'border-slate-100 bg-slate-50'}`}>
+            <History size={20}/> So'nggi Operatsiyalar ({allTransactions.length} ta)
          </div>
          
-         {allTransactions.length > 0 ? (
-           <table className="w-full text-left">
-             <thead className={`text-xs uppercase border-b ${isDark ? 'border-white/5 text-slate-500' : 'border-slate-100 text-slate-400'}`}>
-               <tr>
-                 <th className="p-6">Sana</th>
-                 <th className="p-6">Sabab / Kategoriya</th>
-                 <th className="p-6">Tur</th>
-                 <th className="p-6 text-right">Summa</th>
-               </tr>
-             </thead>
-             <tbody className={`divide-y ${isDark ? 'divide-white/5' : 'divide-slate-100'}`}>
-               {allTransactions.map((item) => (
-                 <tr key={item.id} className={`transition ${isDark ? 'hover:bg-white/5' : 'hover:bg-slate-50'}`}>
-                   <td className={`p-6 font-mono text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{item.date}</td>
-                   
-                   <td className="p-6 font-bold">
-                      {item.student || item.category || item.reason || "Izohsiz"}
-                   </td>
-                   
-                   <td className="p-6">
-                     <span className={`px-3 py-1 rounded-lg text-xs font-bold flex items-center w-fit gap-1 ${item.type === 'income' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
-                       {item.type === 'income' ? <ArrowUpCircle size={14}/> : <ArrowDownCircle size={14}/>}
-                       {item.type === 'income' ? 'Kirim' : 'Chiqim'}
-                     </span>
-                   </td>
-                   
-                   <td className={`p-6 text-right font-black text-lg ${item.type === 'income' ? 'text-emerald-500' : 'text-rose-500'}`}>
-                     {item.type === 'income' ? '+' : '-'}{parseInt(item.amount).toLocaleString()}
-                   </td>
-                 </tr>
-               ))}
-             </tbody>
-           </table>
-         ) : (
-           <div className={`p-20 text-center ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
-             <Wallet size={48} className="mx-auto mb-4 opacity-50"/>
-             <p>Hozircha moliyaviy operatsiyalar yo'q</p>
-           </div>
-         )}
+         {/* Jadval qismi aylanadigan (scrollable) */}
+         <div className="overflow-y-auto flex-1 custom-scrollbar">
+            {allTransactions.length > 0 ? (
+               <table className="w-full text-left border-collapse">
+                 <thead className={`sticky top-0 z-10 text-xs uppercase border-b ${isDark ? 'bg-[#161d31] border-white/5 text-slate-500' : 'bg-white border-slate-100 text-slate-400'}`}>
+                   <tr>
+                     <th className="p-6">Sana</th>
+                     <th className="p-6">Sabab / Kategoriya</th>
+                     <th className="p-6">Tur</th>
+                     <th className="p-6 text-right">Summa</th>
+                   </tr>
+                 </thead>
+                 <tbody className={`divide-y ${isDark ? 'divide-white/5' : 'divide-slate-100'}`}>
+                   {allTransactions.map((item, index) => (
+                     <tr key={index} className={`transition ${isDark ? 'hover:bg-white/5' : 'hover:bg-slate-50'}`}>
+                       <td className={`p-6 font-mono text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{item.date}</td>
+                       
+                       <td className="p-6 font-bold">
+                          {item.student || item.category || item.reason || "Izohsiz"}
+                       </td>
+                       
+                       <td className="p-6">
+                         <span className={`px-3 py-1 rounded-lg text-xs font-bold flex items-center w-fit gap-1 ${item.type === 'income' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                           {item.type === 'income' ? <ArrowUpCircle size={14}/> : <ArrowDownCircle size={14}/>}
+                           {item.type === 'income' ? 'Kirim' : 'Chiqim'}
+                         </span>
+                       </td>
+                       
+                       <td className={`p-6 text-right font-black text-lg ${item.type === 'income' ? 'text-emerald-500' : 'text-rose-500'}`}>
+                         {item.type === 'income' ? '+' : '-'}{parseInt(item.amount).toLocaleString()}
+                       </td>
+                     </tr>
+                   ))}
+                 </tbody>
+               </table>
+            ) : (
+               <div className={`h-full flex flex-col items-center justify-center p-20 text-center ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                 <Wallet size={48} className="mx-auto mb-4 opacity-50"/>
+                 <p>Hozircha moliyaviy operatsiyalar yo'q</p>
+               </div>
+            )}
+         </div>
       </div>
 
       {/* 🟢 KIRIM MODALI */}

@@ -1,145 +1,165 @@
 import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
-import { 
-  CalendarCheck, Check, X, Users, Calendar 
-} from 'lucide-react';
+import { Calendar, Check, X, Minus, UserCheck, Search } from 'lucide-react';
 
 export const Attendance = () => {
-  const { groups, students, markAttendance, attendance, theme } = useData();
+  const { groups, students, attendance, markAttendance, theme } = useData();
   const isDark = theme === 'dark';
-  
-  const [selectedGroup, setSelectedGroup] = useState('');
+
+  // --- STATE ---
+  const [selectedGroupId, setSelectedGroupId] = useState(groups.length > 0 ? groups[0].id : '');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10));
+  const [search, setSearch] = useState('');
 
-  const safeGroups = groups || [];
-  const safeStudents = students || [];
+  // --- MANTIQ ---
+  
+  // 1. Tanlangan guruhdagi o'quvchilarni topamiz (Universal Filtr bilan)
+  const groupStudents = students.filter(s => {
+    // Ism bo'yicha qidiruv
+    const matchSearch = s.name.toLowerCase().includes(search.toLowerCase());
+    
+    // Guruh bo'yicha filtr (Yangi va Eski format)
+    let matchGroup = false;
+    if (s.groupId && parseInt(s.groupId) === parseInt(selectedGroupId)) matchGroup = true;
+    if (s.groupIds && s.groupIds.includes(parseInt(selectedGroupId))) matchGroup = true;
 
-  // Tanlangan guruh o'quvchilari
-  const groupStudents = safeStudents.filter(s => s.groupIds && s.groupIds.includes(parseInt(selectedGroup)));
+    return matchGroup && matchSearch;
+  });
 
-  // Davomatni belgilash
-  const handleMark = (studentId, status) => {
-    markAttendance(selectedDate, parseInt(selectedGroup), studentId, status);
-  };
-
-  // O'quvchining holatini olish
+  // 2. O'quvchining bugungi statusini olish
   const getStatus = (studentId) => {
-    const record = attendance?.find(a => a.date === selectedDate && a.studentId === studentId && a.groupId === parseInt(selectedGroup));
-    return record ? record.status : null;
+    const record = attendance.find(a => 
+      a.date === selectedDate && 
+      a.studentId === studentId && 
+      parseInt(a.groupId) === parseInt(selectedGroupId)
+    );
+    return record ? record.status : null; // 'present', 'absent', 'reason', yoki null
   };
 
-  // Statistika (Nechta keldi, nechta kelmadi)
-  const presentCount = groupStudents.filter(s => getStatus(s.id) === 'present').length;
-  const absentCount = groupStudents.filter(s => getStatus(s.id) === 'absent').length;
+  // 3. Davomat qilish (BUTTON BOSILGANDA)
+  const handleMark = (studentId, status) => {
+    markAttendance(selectedDate, parseInt(selectedGroupId), studentId, status);
+  };
 
   return (
-    <div className={`p-10 min-h-screen pb-24 transition-all duration-300 ${isDark ? 'bg-[#0b1120] text-white' : 'bg-slate-50 text-slate-900'}`}>
+    <div className={`p-6 min-h-screen pb-24 transition-colors duration-300 ${isDark ? 'bg-[#0b1120] text-slate-300' : 'bg-slate-50 text-slate-700'}`}>
       
       {/* HEADER */}
-      <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
         <div>
-          <h1 className="text-3xl font-black tracking-tight flex items-center gap-3">
-            Davomat <span className="text-sm font-bold px-3 py-1 rounded-full bg-cyan-500/10 text-cyan-500 border border-cyan-500/20">{selectedDate}</span>
-          </h1>
-          <p className={`text-sm mt-1 font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-            O'quvchilarning darsga qatnashishini nazorat qiling
-          </p>
+          <h1 className={`text-3xl font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>Davomat</h1>
+          <p className="text-slate-500">O'quvchilar ishtirokini belgilash</p>
         </div>
-
-        {/* CONTROLS */}
-        <div className="flex gap-4 w-full md:w-auto">
-           {/* Guruh Tanlash */}
-           <div className={`flex items-center px-4 py-3 rounded-2xl border w-full md:w-64 ${isDark ? 'bg-[#161d31] border-white/10' : 'bg-white border-slate-200'}`}>
-              <Users size={20} className="text-slate-400 mr-2"/>
-              <select 
-                className={`bg-transparent outline-none w-full font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}
-                value={selectedGroup}
-                onChange={e => setSelectedGroup(e.target.value)}
-              >
-                <option value="" className="text-black">Guruhni tanlang...</option>
-                {safeGroups.map(g => <option key={g.id} value={g.id} className="text-black">{g.name}</option>)}
-              </select>
-           </div>
-
-           {/* Sana Tanlash */}
-           <div className={`flex items-center px-4 py-3 rounded-2xl border w-full md:w-48 ${isDark ? 'bg-[#161d31] border-white/10' : 'bg-white border-slate-200'}`}>
-              <Calendar size={20} className="text-slate-400 mr-2"/>
-              <input 
-                type="date"
-                className={`bg-transparent outline-none w-full font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}
-                value={selectedDate}
-                onChange={e => setSelectedDate(e.target.value)}
-              />
-           </div>
+        
+        {/* SANA TANLASH */}
+        <div className={`flex items-center px-4 py-2 rounded-xl border ${isDark ? 'bg-[#161d31] border-white/10' : 'bg-white border-slate-200'}`}>
+           <Calendar size={18} className="mr-2 text-blue-500"/>
+           <input 
+             type="date" 
+             value={selectedDate} 
+             onChange={(e) => setSelectedDate(e.target.value)} 
+             className="bg-transparent outline-none font-bold"
+           />
         </div>
       </div>
 
-      {selectedGroup ? (
-        <>
-          {/* STATISTIKA BAR */}
-          <div className="grid grid-cols-2 gap-4 mb-8">
-             <div className={`p-4 rounded-2xl flex items-center justify-between border ${isDark ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-emerald-50 border-emerald-100 text-emerald-600'}`}>
-                <span className="font-bold">Kelganlar</span>
-                <span className="text-2xl font-black">{presentCount}</span>
-             </div>
-             <div className={`p-4 rounded-2xl flex items-center justify-between border ${isDark ? 'bg-rose-500/10 border-rose-500/20 text-rose-400' : 'bg-rose-50 border-rose-100 text-rose-600'}`}>
-                <span className="font-bold">Kelmaganlar</span>
-                <span className="text-2xl font-black">{absentCount}</span>
-             </div>
-          </div>
+      {/* FILTRLAR */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+         {/* Guruh tanlash */}
+         <select 
+           value={selectedGroupId} 
+           onChange={(e) => setSelectedGroupId(e.target.value)}
+           className={`w-full p-4 rounded-2xl outline-none border font-bold ${isDark ? 'bg-[#161d31] border-white/5 text-white' : 'bg-white border-slate-200'}`}
+         >
+            {groups.length > 0 ? groups.map(g => (
+              <option key={g.id} value={g.id}>{g.name}</option>
+            )) : <option>Guruhlar yo'q</option>}
+         </select>
 
-          {/* O'QUVCHILAR RO'YXATI */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {groupStudents.length > 0 ? groupStudents.map(s => {
-              const status = getStatus(s.id);
-              return (
-                <div key={s.id} className={`p-5 rounded-[24px] border flex items-center justify-between transition-all hover:shadow-lg ${isDark ? 'bg-[#161d31] border-white/5' : 'bg-white border-slate-200'}`}>
-                   
-                   <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${isDark ? 'bg-white/5' : 'bg-slate-100'}`}>
-                        {s.name.charAt(0)}
-                      </div>
-                      <p className="font-bold truncate max-w-[120px]">{s.name}</p>
-                   </div>
+         {/* Qidirish */}
+         <div className={`flex items-center px-4 py-3 rounded-2xl border ${isDark ? 'bg-[#161d31] border-white/5' : 'bg-white border-slate-200'}`}>
+            <Search className="text-slate-400 mr-2"/>
+            <input 
+              placeholder="O'quvchini qidirish..." 
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full bg-transparent outline-none font-medium"
+            />
+         </div>
+      </div>
 
-                   <div className="flex gap-2">
-                      <button 
-                         onClick={() => handleMark(s.id, 'present')}
-                         className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all active:scale-95 ${
+      {/* DAVOMAT RO'YXATI */}
+      <div className={`rounded-[32px] border overflow-hidden shadow-sm ${isDark ? 'bg-[#161d31] border-white/5' : 'bg-white border-slate-200'}`}>
+         {groupStudents.length > 0 ? (
+           <div className="divide-y divide-white/5">
+             {groupStudents.map((student, idx) => {
+               const status = getStatus(student.id);
+
+               return (
+                 <div 
+                   key={student.id} 
+                   className={`p-4 flex flex-col md:flex-row items-center justify-between gap-4 transition ${isDark ? 'hover:bg-white/5' : 'hover:bg-slate-50'}`}
+                   // 🔥 MUHIM: Bu yerda onClick={navigate} YO'Q! Shuning uchun bosganda hech qayerga ketmaydi.
+                 >
+                    <div className="flex items-center gap-4 w-full md:w-auto">
+                       <span className="w-8 h-8 rounded-lg bg-slate-500/10 flex items-center justify-center font-bold text-sm text-slate-500">{idx + 1}</span>
+                       <div>
+                          <h3 className={`font-bold text-lg ${isDark ? 'text-white' : 'text-slate-900'}`}>{student.name}</h3>
+                          <p className="text-xs text-slate-500">{student.phone}</p>
+                       </div>
+                    </div>
+
+                    {/* TUGMALAR (BUTTONS) */}
+                    <div className="flex gap-2 w-full md:w-auto justify-center">
+                       
+                       {/* 1. BOR (PRESENT) */}
+                       <button 
+                         onClick={() => handleMark(student.id, 'present')}
+                         className={`flex-1 md:flex-none px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition border-2 ${
                            status === 'present' 
-                             ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30' 
-                             : isDark ? 'bg-white/5 text-slate-500 hover:bg-emerald-500/20' : 'bg-slate-100 text-slate-400 hover:bg-emerald-100'
+                             ? 'bg-emerald-500 text-white border-emerald-500 shadow-lg shadow-emerald-500/30' 
+                             : `border-emerald-500/20 text-emerald-500 ${isDark ? 'hover:bg-emerald-500/10' : 'hover:bg-emerald-50'}`
                          }`}
-                      >
-                         <Check size={20} strokeWidth={3}/>
-                      </button>
-                      <button 
-                         onClick={() => handleMark(s.id, 'absent')}
-                         className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all active:scale-95 ${
+                       >
+                          <Check size={20}/> <span className="hidden sm:inline">Bor</span>
+                       </button>
+
+                       {/* 2. SABABLI (REASON) */}
+                       <button 
+                         onClick={() => handleMark(student.id, 'reason')}
+                         className={`flex-1 md:flex-none px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition border-2 ${
+                           status === 'reason' 
+                             ? 'bg-yellow-500 text-white border-yellow-500 shadow-lg shadow-yellow-500/30' 
+                             : `border-yellow-500/20 text-yellow-500 ${isDark ? 'hover:bg-yellow-500/10' : 'hover:bg-yellow-50'}`
+                         }`}
+                       >
+                          <Minus size={20}/> <span className="hidden sm:inline">Sababli</span>
+                       </button>
+
+                       {/* 3. YO'Q (ABSENT) */}
+                       <button 
+                         onClick={() => handleMark(student.id, 'absent')}
+                         className={`flex-1 md:flex-none px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition border-2 ${
                            status === 'absent' 
-                             ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/30' 
-                             : isDark ? 'bg-white/5 text-slate-500 hover:bg-rose-500/20' : 'bg-slate-100 text-slate-400 hover:bg-rose-100'
+                             ? 'bg-rose-500 text-white border-rose-500 shadow-lg shadow-rose-500/30' 
+                             : `border-rose-500/20 text-rose-500 ${isDark ? 'hover:bg-rose-500/10' : 'hover:bg-rose-50'}`
                          }`}
-                      >
-                         <X size={20} strokeWidth={3}/>
-                      </button>
-                   </div>
-                </div>
-              )
-            }) : (
-              <div className="col-span-full py-20 text-center opacity-50">
-                 <Users size={48} className="mx-auto mb-4"/>
-                 <p>Bu guruhda o'quvchi yo'q</p>
-              </div>
-            )}
-          </div>
-        </>
-      ) : (
-        <div className="flex flex-col items-center justify-center py-32 opacity-50">
-           <CalendarCheck size={80} className="mb-4 text-slate-300"/>
-           <p className="text-xl font-bold">Guruhni tanlang</p>
-        </div>
-      )}
+                       >
+                          <X size={20}/> <span className="hidden sm:inline">Yo'q</span>
+                       </button>
+
+                    </div>
+                 </div>
+               );
+             })}
+           </div>
+         ) : (
+           <div className="p-16 text-center text-slate-500">
+              <UserCheck size={48} className="mx-auto mb-4 opacity-50"/>
+              <p>Bu guruhda o'quvchilar yo'q.</p>
+           </div>
+         )}
+      </div>
     </div>
   );
 };

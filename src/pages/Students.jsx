@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
 import { 
   User, Plus, Search, Trash2, Phone, Star, Layers, X, 
-  Edit, Wallet, CheckCircle, Zap, CalendarClock 
+  Edit, Wallet, CheckCircle, Zap 
 } from 'lucide-react';
 import { ConfirmModal } from '../components/ConfirmModal';
 
@@ -10,7 +10,6 @@ export const Students = () => {
   const data = useData();
   if (!data) return null;
 
-  // payments ni oldik
   const { students, groups, payments, addStudent, updateStudent, deleteStudent, addPayment, giveBonus, theme } = data;
   const isDark = theme === 'dark';
   
@@ -32,23 +31,16 @@ export const Students = () => {
   const safeStudents = students || [];
   const safeGroups = groups || [];
 
-  // --- 🔥 MUHIM: Guruh bo'yicha kunni hisoblash ---
+  // --- HISOBLASH ---
   const getGroupDays = (studentId, groupId) => {
     const group = safeGroups.find(g => g.id === groupId);
     if (!group) return 0;
-
-    // Shu o'quvchi va shu guruh bo'yicha to'lovlar
     const studentPayments = payments?.filter(p => p.studentId === studentId && p.groupId === groupId) || [];
-    
-    // Jami to'lagan puli
     const totalPaid = studentPayments.reduce((sum, p) => sum + (parseInt(p.amount) || 0), 0);
-    
-    // Kun hisoblash
     const monthlyPrice = parseInt(group.price) || 1;
     return Math.floor((totalPaid / monthlyPrice) * 30);
   };
 
-  // Qidiruv
   const filteredStudents = safeStudents.filter(s => 
     s.name.toLowerCase().includes(search.toLowerCase()) || 
     s.phone.includes(search)
@@ -107,7 +99,7 @@ export const Students = () => {
             O'quvchilar <span className="text-sm font-bold px-3 py-1 rounded-full bg-cyan-500/10 text-cyan-500 border border-cyan-500/20">{safeStudents.length} ta</span>
           </h1>
           <p className={`text-sm mt-1 font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-            Barcha o'quvchilar ro'yxati va boshqaruvi
+            Barcha o'quvchilar ro'yxati
           </p>
         </div>
 
@@ -127,15 +119,24 @@ export const Students = () => {
         {filteredStudents.length > 0 ? filteredStudents.map((s) => (
           <div key={s.id} className={`p-6 rounded-[32px] border relative group transition-all duration-300 hover:-translate-y-2 hover:shadow-xl ${isDark ? 'bg-[#161d31] border-white/5 shadow-black/50' : 'bg-white border-slate-200 shadow-slate-200'}`}>
              
+             {/* Header + XP TEPADA */}
              <div className="flex justify-between items-start mb-4">
                 <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black ${isDark ? 'bg-cyan-500/10 text-cyan-400' : 'bg-cyan-50 text-cyan-600'}`}>
                    {s.name.charAt(0)}
                 </div>
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                   <button onClick={() => openBonusModal(s)} className="p-2 bg-orange-500/10 text-orange-500 hover:bg-orange-500 hover:text-white rounded-xl transition"><Zap size={18}/></button>
-                   <button onClick={() => openPayModal(s)} className="p-2 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white rounded-xl transition"><Wallet size={18}/></button>
-                   <button onClick={() => openModal(s)} className="p-2 bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white rounded-xl transition"><Edit size={18}/></button>
-                   <button onClick={() => { setDeletingId(s.id); setIsDeleteModalOpen(true); }} className="p-2 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded-xl transition"><Trash2 size={18}/></button>
+                
+                <div className="flex flex-col items-end gap-2">
+                   <div className="flex items-center gap-1 text-orange-500 font-black bg-orange-500/10 px-3 py-1 rounded-xl text-xs border border-orange-500/20">
+                      <Star size={12} fill="currentColor"/> {s.score || 0} XP
+                   </div>
+
+                   {/* Hover Tugmalar */}
+                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity absolute top-14 right-6 bg-white/10 backdrop-blur-md p-1 rounded-xl border border-white/20 shadow-lg z-10">
+                      <button onClick={() => openBonusModal(s)} className="p-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600"><Zap size={16} fill="currentColor"/></button>
+                      <button onClick={() => openPayModal(s)} className="p-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600"><Wallet size={16}/></button>
+                      <button onClick={() => openModal(s)} className="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"><Edit size={16}/></button>
+                      <button onClick={() => { setDeletingId(s.id); setIsDeleteModalOpen(true); }} className="p-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600"><Trash2 size={16}/></button>
+                   </div>
                 </div>
              </div>
 
@@ -144,11 +145,11 @@ export const Students = () => {
                <Phone size={14} className="text-cyan-500"/> {s.phone}
              </p>
 
-             {/* 🔥 GURUHLAR VA KUNLAR (Multi-Badge) */}
-             <div className="mt-4 flex flex-col gap-2 min-h-[30px]">
+             {/* GURUHLAR VA KUNLAR */}
+             <div className="mt-4 flex flex-col gap-2">
                 {s.groupIds && s.groupIds.length > 0 ? s.groupIds.map(gid => {
                    const g = safeGroups.find(gr => gr.id === gid);
-                   const days = getGroupDays(s.id, gid); // Kun hisoblash
+                   const days = getGroupDays(s.id, gid);
 
                    return g ? (
                      <div key={gid} className={`flex justify-between items-center px-3 py-2 rounded-xl text-xs font-bold border ${isDark ? 'bg-[#0b1120] border-white/10' : 'bg-slate-50 border-slate-200'}`}>
@@ -162,12 +163,8 @@ export const Students = () => {
                      </div>
                    ) : null;
                 }) : (
-                   <span className="text-xs text-rose-500 bg-rose-500/10 px-2 py-1 rounded font-bold w-fit">Guruhsiz</span>
+                   <span className="text-xs text-rose-500 bg-rose-500/10 px-3 py-2 rounded-xl font-bold w-fit">Guruhsiz</span>
                 )}
-             </div>
-
-             <div className="absolute bottom-6 right-6 flex items-center gap-1 text-orange-500 font-black bg-orange-500/10 px-3 py-1 rounded-lg text-xs border border-orange-500/20">
-                <Star size={12} fill="currentColor"/> {s.score || 0} XP
              </div>
 
           </div>
@@ -179,13 +176,14 @@ export const Students = () => {
         )}
       </div>
 
-      {/* MODALLAR */}
+      {/* 🟢 MODAL: O'QUVCHI QO'SHISH/TAHRIRLASH */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
            <div className={`w-full max-w-lg p-8 rounded-[32px] border shadow-2xl ${isDark ? 'bg-[#161d31] border-white/10' : 'bg-white'}`}>
-              <h2 className={`text-2xl font-bold mb-6 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                {editingStudent ? "Tahrirlash" : "Yangi O'quvchi"}
-              </h2>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{editingStudent ? "Tahrirlash" : "Yangi O'quvchi"}</h2>
+                <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-rose-500"><X /></button>
+              </div>
               <form onSubmit={handleSubmit} className="space-y-4">
                  <input placeholder="Ism Familiya" className={`w-full p-4 rounded-2xl outline-none border font-bold ${isDark ? 'bg-[#0b1120] border-white/5 text-white' : 'bg-slate-50 border-slate-200'}`} value={formData.name} onChange={e=>setFormData({...formData, name: e.target.value})} required />
                  <input placeholder="Telefon" className={`w-full p-4 rounded-2xl outline-none border font-bold ${isDark ? 'bg-[#0b1120] border-white/5 text-white' : 'bg-slate-50 border-slate-200'}`} value={formData.phone} onChange={e=>setFormData({...formData, phone: e.target.value})} required />
@@ -201,7 +199,7 @@ export const Students = () => {
                     </div>
                  </div>
                  <div className="flex gap-3 mt-4">
-                    <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-4 bg-slate-500/10 rounded-2xl font-bold">Bekor</button>
+                    <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-4 bg-slate-500/10 rounded-2xl font-bold hover:bg-slate-500/20 text-slate-500 transition">Bekor</button>
                     <button type="submit" className="flex-1 py-4 bg-cyan-600 text-white rounded-2xl font-bold">Saqlash</button>
                  </div>
               </form>
@@ -209,52 +207,76 @@ export const Students = () => {
         </div>
       )}
 
+      {/* 💰 MODAL: TO'LOV (YANGILANDI: BEKOR QILISH TUGMASI QO'SHILDI) */}
       {isPayModalOpen && (
          <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
             <div className={`w-full max-w-md p-8 rounded-[32px] border shadow-2xl ${isDark ? 'bg-[#161d31] border-white/10' : 'bg-white'}`}>
-               <h2 className="text-2xl font-bold text-emerald-500 mb-6 flex gap-2"><Wallet /> To'lov</h2>
-               <div className="mb-4 text-center">
-                  <h3 className="text-xl font-bold">{payData.name}</h3>
+               
+               {/* Header + Yopish tugmasi */}
+               <div className="flex justify-between items-center mb-6">
+                 <h2 className="text-2xl font-bold text-emerald-500 flex items-center gap-2"><Wallet /> To'lov</h2>
+                 <button onClick={() => setIsPayModalOpen(false)} className="text-slate-400 hover:text-rose-500"><X /></button>
                </div>
+
+               <div className="mb-4 text-center"><h3 className="text-xl font-bold">{payData.name}</h3></div>
+               
                <form onSubmit={handlePaySubmit} className="space-y-4">
-                  <div className="space-y-1">
-                     <label className="text-xs font-bold text-slate-500 uppercase ml-1">Qaysi kurs uchun?</label>
-                     <select className={`w-full p-4 rounded-2xl outline-none border font-bold ${isDark ? 'bg-[#0b1120] border-white/5 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`} value={payData.groupId} onChange={e => setPayData({...payData, groupId: e.target.value})} required>
-                        <option value="" className="text-black">Tanlang...</option>
-                        {safeStudents.find(s => s.id === payData.studentId)?.groupIds.map(gid => {
-                           const g = safeGroups.find(gr => gr.id === gid);
-                           return <option key={gid} value={gid} className="text-black">{g?.name} ({parseInt(g?.price).toLocaleString()} UZS)</option>
-                        })}
-                     </select>
-                  </div>
+                  <select className={`w-full p-4 rounded-2xl outline-none border font-bold ${isDark ? 'bg-[#0b1120] border-white/5 text-white' : 'bg-slate-50 border-slate-200'}`} value={payData.groupId} onChange={e => setPayData({...payData, groupId: e.target.value})} required>
+                     <option value="" className="text-black">Tanlang...</option>
+                     {safeStudents.find(s => s.id === payData.studentId)?.groupIds.map(gid => {
+                        const g = safeGroups.find(gr => gr.id === gid);
+                        return <option key={gid} value={gid} className="text-black">{g?.name} ({parseInt(g?.price).toLocaleString()} UZS)</option>
+                     })}
+                  </select>
+                  
                   <input type="number" placeholder="Summa (UZS)" className={`w-full p-4 rounded-2xl outline-none border font-bold text-lg text-emerald-500 ${isDark ? 'bg-[#0b1120] border-white/5' : 'bg-slate-50 border-slate-200'}`} value={payData.amount} onChange={e => setPayData({...payData, amount: e.target.value})} required />
-                  {payData.amount && payData.groupId && (
-                     <div className="p-4 rounded-2xl text-center text-sm font-bold bg-emerald-500/10 text-emerald-500">
-                        + {calculateDays()} kun qo'shiladi
-                     </div>
-                  )}
-                  <button type="submit" className="w-full py-4 rounded-2xl font-bold bg-emerald-500 text-white">Tasdiqlash</button>
+                  
+                  {payData.amount && payData.groupId && <div className="p-4 rounded-2xl text-center text-sm font-bold bg-emerald-500/10 text-emerald-500">+ {calculateDays()} kun qo'shiladi</div>}
+                  
+                  {/* 🔥 YANGI TUGMALAR (Bekor qilish + Tasdiqlash) */}
+                  <div className="flex gap-3 mt-6">
+                     <button 
+                       type="button" 
+                       onClick={() => setIsPayModalOpen(false)} 
+                       className="flex-1 py-4 bg-slate-500/10 text-slate-500 rounded-2xl font-bold hover:bg-slate-500/20 transition"
+                     >
+                       Bekor qilish
+                     </button>
+                     <button 
+                       type="submit" 
+                       className="flex-1 py-4 bg-emerald-500 text-white rounded-2xl font-bold shadow-lg shadow-emerald-500/30 hover:bg-emerald-600 transition"
+                     >
+                       Tasdiqlash
+                     </button>
+                  </div>
                </form>
             </div>
          </div>
       )}
 
+      {/* ⚡ MODAL: BONUS */}
       {isBonusModalOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
            <div className={`w-full max-w-sm p-8 rounded-[32px] border shadow-2xl ${isDark ? 'bg-[#161d31] border-white/10' : 'bg-white'}`}>
-              <h2 className="text-xl font-bold mb-6 flex items-center gap-2 text-orange-500"><Zap /> Ball Berish</h2>
+              <div className="flex justify-between items-center mb-6">
+                 <h2 className="text-xl font-bold flex items-center gap-2 text-orange-500"><Zap /> Ball Berish</h2>
+                 <button onClick={() => setIsBonusModalOpen(false)} className="text-slate-400 hover:text-rose-500"><X /></button>
+              </div>
               <h3 className="text-center font-bold text-xl mb-6">{bonusData.name}</h3>
               <form onSubmit={handleBonusSubmit} className="space-y-4">
                  <input type="number" className={`w-full p-4 rounded-2xl outline-none border font-black text-center text-3xl text-orange-500 ${isDark ? 'bg-[#0b1120] border-white/5' : 'bg-slate-50 border-slate-200'}`} value={bonusData.points} onChange={e => setBonusData({...bonusData, points: e.target.value})} required />
                  <input className={`w-full p-4 rounded-2xl outline-none border font-bold ${isDark ? 'bg-[#0b1120] border-white/5 text-white' : 'bg-slate-50 border-slate-200'}`} value={bonusData.reason} onChange={e => setBonusData({...bonusData, reason: e.target.value})} placeholder="Sabab" required />
-                 <button type="submit" className="w-full py-4 bg-orange-500 text-white rounded-2xl font-bold">Tasdiqlash</button>
+                 
+                 <div className="flex gap-3 mt-4">
+                    <button type="button" onClick={() => setIsBonusModalOpen(false)} className="flex-1 py-4 bg-slate-500/10 text-slate-500 rounded-2xl font-bold hover:bg-slate-500/20 transition">Bekor</button>
+                    <button type="submit" className="flex-1 py-4 bg-orange-500 text-white rounded-2xl font-bold">Tasdiqlash</button>
+                 </div>
               </form>
            </div>
         </div>
       )}
 
       <ConfirmModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} onConfirm={handleDeleteConfirm} isDark={isDark} title="O'chirish" />
-
     </div>
   );
 };
