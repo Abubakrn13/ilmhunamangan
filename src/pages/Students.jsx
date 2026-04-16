@@ -35,7 +35,7 @@ export const Students = () => {
   const getGroupDays = (studentId, groupId) => {
     const group = safeGroups.find(g => g.id === groupId);
     if (!group) return 0;
-    const studentPayments = payments?.filter(p => p.studentId === studentId && p.groupId === groupId) || [];
+    const studentPayments = payments?.filter(p => String(p.studentId) === String(studentId) && String(p.groupId) === String(groupId)) || [];
     const totalPaid = studentPayments.reduce((sum, p) => sum + (parseInt(p.amount) || 0), 0);
     const monthlyPrice = parseInt(group.price) || 1;
     return Math.floor((totalPaid / monthlyPrice) * 30);
@@ -56,7 +56,15 @@ export const Students = () => {
   const handleSubmit = (e) => { 
     e.preventDefault(); 
     if (!formData.name || !formData.phone) return alert("Ism va Telefon majburiy!");
-    editingStudent ? updateStudent(formData) : addStudent(formData); 
+    
+    // Guruhlar bo'sh bo'lsa ham array saqlasin
+    const studentData = { ...formData, groupIds: formData.groupIds || [] };
+
+    if (editingStudent) {
+       updateStudent(studentData);
+    } else {
+       addStudent(studentData); 
+    }
     setIsModalOpen(false); 
   };
 
@@ -77,7 +85,17 @@ export const Students = () => {
     e.preventDefault(); 
     if (!payData.amount || !payData.groupId) return alert("Summa va Kursni tanlang!");
     const g = safeGroups.find(gr=>gr.id==payData.groupId); 
-    addPayment({ student:payData.name, studentId:payData.studentId, groupId:parseInt(payData.groupId), amount:payData.amount, date:payData.date, type:'income', reason:`To'lov: ${g?.name}` }); 
+    
+    addPayment({ 
+        student: payData.name, 
+        studentId: payData.studentId, // student_id emas, studentId (sizning kodingiz bo'yicha)
+        student_id: payData.studentId, // Ehtiyot shart ikkalasini ham yozamiz
+        groupId: parseInt(payData.groupId), 
+        amount: payData.amount, 
+        date: payData.date, 
+        type:'income', 
+        comment: `To'lov: ${g?.name}` 
+    }); 
     setIsPayModalOpen(false); 
   };
 
@@ -90,7 +108,7 @@ export const Students = () => {
   };
 
   return (
-    <div className={`p-10 min-h-screen pb-24 transition-all duration-300 ${isDark ? 'bg-[#0b1120] text-white' : 'bg-slate-50 text-slate-900'}`}>
+    <div className={`p-6 md:p-10 min-h-screen pb-24 transition-all duration-300 ${isDark ? 'bg-[#0b1120] text-white' : 'bg-slate-50 text-slate-900'}`}>
       
       {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
@@ -132,10 +150,10 @@ export const Students = () => {
 
                    {/* Hover Tugmalar */}
                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity absolute top-14 right-6 bg-white/10 backdrop-blur-md p-1 rounded-xl border border-white/20 shadow-lg z-10">
-                      <button onClick={() => openBonusModal(s)} className="p-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600"><Zap size={16} fill="currentColor"/></button>
-                      <button onClick={() => openPayModal(s)} className="p-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600"><Wallet size={16}/></button>
-                      <button onClick={() => openModal(s)} className="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"><Edit size={16}/></button>
-                      <button onClick={() => { setDeletingId(s.id); setIsDeleteModalOpen(true); }} className="p-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600"><Trash2 size={16}/></button>
+                      <button onClick={() => openBonusModal(s)} className="p-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600" title="Ball berish"><Zap size={16} fill="currentColor"/></button>
+                      <button onClick={() => openPayModal(s)} className="p-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600" title="To'lov"><Wallet size={16}/></button>
+                      <button onClick={() => openModal(s)} className="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600" title="Tahrirlash"><Edit size={16}/></button>
+                      <button onClick={() => { setDeletingId(s.id); setIsDeleteModalOpen(true); }} className="p-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600" title="O'chirish"><Trash2 size={16}/></button>
                    </div>
                 </div>
              </div>
@@ -148,7 +166,7 @@ export const Students = () => {
              {/* GURUHLAR VA KUNLAR */}
              <div className="mt-4 flex flex-col gap-2">
                 {s.groupIds && s.groupIds.length > 0 ? s.groupIds.map(gid => {
-                   const g = safeGroups.find(gr => gr.id === gid);
+                   const g = safeGroups.find(gr => gr.id === parseInt(gid)); // ID larni solishtirish
                    const days = getGroupDays(s.id, gid);
 
                    return g ? (
@@ -179,7 +197,7 @@ export const Students = () => {
       {/* 🟢 MODAL: O'QUVCHI QO'SHISH/TAHRIRLASH */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
-           <div className={`w-full max-w-lg p-8 rounded-[32px] border shadow-2xl ${isDark ? 'bg-[#161d31] border-white/10' : 'bg-white'}`}>
+           <div className={`w-full max-w-lg p-8 rounded-[32px] border shadow-2xl animate-in zoom-in duration-200 ${isDark ? 'bg-[#161d31] border-white/10' : 'bg-white'}`}>
               <div className="flex justify-between items-center mb-6">
                 <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{editingStudent ? "Tahrirlash" : "Yangi O'quvchi"}</h2>
                 <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-rose-500"><X /></button>
@@ -207,25 +225,23 @@ export const Students = () => {
         </div>
       )}
 
-      {/* 💰 MODAL: TO'LOV (YANGILANDI: BEKOR QILISH TUGMASI QO'SHILDI) */}
+      {/* 💰 MODAL: TO'LOV */}
       {isPayModalOpen && (
          <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
-            <div className={`w-full max-w-md p-8 rounded-[32px] border shadow-2xl ${isDark ? 'bg-[#161d31] border-white/10' : 'bg-white'}`}>
-               
-               {/* Header + Yopish tugmasi */}
+            <div className={`w-full max-w-md p-8 rounded-[32px] border shadow-2xl animate-in zoom-in duration-200 ${isDark ? 'bg-[#161d31] border-white/10' : 'bg-white'}`}>
                <div className="flex justify-between items-center mb-6">
                  <h2 className="text-2xl font-bold text-emerald-500 flex items-center gap-2"><Wallet /> To'lov</h2>
                  <button onClick={() => setIsPayModalOpen(false)} className="text-slate-400 hover:text-rose-500"><X /></button>
                </div>
 
-               <div className="mb-4 text-center"><h3 className="text-xl font-bold">{payData.name}</h3></div>
+               <div className="mb-4 text-center"><h3 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{payData.name}</h3></div>
                
                <form onSubmit={handlePaySubmit} className="space-y-4">
                   <select className={`w-full p-4 rounded-2xl outline-none border font-bold ${isDark ? 'bg-[#0b1120] border-white/5 text-white' : 'bg-slate-50 border-slate-200'}`} value={payData.groupId} onChange={e => setPayData({...payData, groupId: e.target.value})} required>
-                     <option value="" className="text-black">Tanlang...</option>
-                     {safeStudents.find(s => s.id === payData.studentId)?.groupIds.map(gid => {
-                        const g = safeGroups.find(gr => gr.id === gid);
-                        return <option key={gid} value={gid} className="text-black">{g?.name} ({parseInt(g?.price).toLocaleString()} UZS)</option>
+                     <option value="" className="text-black">Guruhni tanlang...</option>
+                     {safeStudents.find(s => s.id === payData.studentId)?.groupIds?.map(gid => {
+                        const g = safeGroups.find(gr => gr.id === parseInt(gid));
+                        return g ? <option key={gid} value={gid} className="text-black">{g.name} ({parseInt(g.price).toLocaleString()} UZS)</option> : null;
                      })}
                   </select>
                   
@@ -233,21 +249,9 @@ export const Students = () => {
                   
                   {payData.amount && payData.groupId && <div className="p-4 rounded-2xl text-center text-sm font-bold bg-emerald-500/10 text-emerald-500">+ {calculateDays()} kun qo'shiladi</div>}
                   
-                  {/* 🔥 YANGI TUGMALAR (Bekor qilish + Tasdiqlash) */}
                   <div className="flex gap-3 mt-6">
-                     <button 
-                       type="button" 
-                       onClick={() => setIsPayModalOpen(false)} 
-                       className="flex-1 py-4 bg-slate-500/10 text-slate-500 rounded-2xl font-bold hover:bg-slate-500/20 transition"
-                     >
-                       Bekor qilish
-                     </button>
-                     <button 
-                       type="submit" 
-                       className="flex-1 py-4 bg-emerald-500 text-white rounded-2xl font-bold shadow-lg shadow-emerald-500/30 hover:bg-emerald-600 transition"
-                     >
-                       Tasdiqlash
-                     </button>
+                     <button type="button" onClick={() => setIsPayModalOpen(false)} className="flex-1 py-4 bg-slate-500/10 text-slate-500 rounded-2xl font-bold hover:bg-slate-500/20 transition">Bekor</button>
+                     <button type="submit" className="flex-1 py-4 bg-emerald-500 text-white rounded-2xl font-bold shadow-lg shadow-emerald-500/30 hover:bg-emerald-600 transition">Tasdiqlash</button>
                   </div>
                </form>
             </div>
@@ -257,12 +261,12 @@ export const Students = () => {
       {/* ⚡ MODAL: BONUS */}
       {isBonusModalOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
-           <div className={`w-full max-w-sm p-8 rounded-[32px] border shadow-2xl ${isDark ? 'bg-[#161d31] border-white/10' : 'bg-white'}`}>
+           <div className={`w-full max-w-sm p-8 rounded-[32px] border shadow-2xl animate-in zoom-in duration-200 ${isDark ? 'bg-[#161d31] border-white/10' : 'bg-white'}`}>
               <div className="flex justify-between items-center mb-6">
                  <h2 className="text-xl font-bold flex items-center gap-2 text-orange-500"><Zap /> Ball Berish</h2>
                  <button onClick={() => setIsBonusModalOpen(false)} className="text-slate-400 hover:text-rose-500"><X /></button>
               </div>
-              <h3 className="text-center font-bold text-xl mb-6">{bonusData.name}</h3>
+              <h3 className={`text-center font-bold text-xl mb-6 ${isDark ? 'text-white' : 'text-slate-900'}`}>{bonusData.name}</h3>
               <form onSubmit={handleBonusSubmit} className="space-y-4">
                  <input type="number" className={`w-full p-4 rounded-2xl outline-none border font-black text-center text-3xl text-orange-500 ${isDark ? 'bg-[#0b1120] border-white/5' : 'bg-slate-50 border-slate-200'}`} value={bonusData.points} onChange={e => setBonusData({...bonusData, points: e.target.value})} required />
                  <input className={`w-full p-4 rounded-2xl outline-none border font-bold ${isDark ? 'bg-[#0b1120] border-white/5 text-white' : 'bg-slate-50 border-slate-200'}`} value={bonusData.reason} onChange={e => setBonusData({...bonusData, reason: e.target.value})} placeholder="Sabab" required />

@@ -1,262 +1,270 @@
-import React, { useState, useMemo } from 'react';
+import React from 'react';
 import { useData } from '../context/DataContext';
 import { 
-  Users, Layers, TrendingUp, Wallet, 
-  Calendar, ArrowDownLeft, ArrowUpRight, History, Clock, 
-  BarChart4, Activity, Filter
+  Users, Layers, Wallet, TrendingUp, TrendingDown, 
+  MoreHorizontal, Calendar, ArrowUpRight, Phone,
+  CreditCard, Activity
 } from 'lucide-react';
 
 export const Dashboard = () => {
-  const { students, leads, groups, payments, expenses, theme } = useData();
+  const { students, groups, payments, leads, theme } = useData();
+  
+  // 🔥 TUN/KUN REJIMINI ANIQLASH
   const isDark = theme === 'dark';
 
-  // --- STATE: Grafik turi ---
-  const [chartView, setChartView] = useState('year'); // 'week', 'month', 'year'
+  // --- RANGLAR STYLE ---
+  // Bu o'zgaruvchilar orqali ranglarni boshqaramiz
+  const cardClass = isDark 
+    ? 'bg-[#1e293b] border border-white/5 shadow-xl text-white' 
+    : 'bg-white border border-slate-100 shadow-sm text-slate-800';
 
-  // --- 1. SANA VA HISOBLASH ---
-  const today = new Date();
-  const formattedDate = today.toLocaleDateString('ru-RU');
-  
-  // Jami statistika
-  const totalIncome = payments.reduce((sum, p) => sum + (parseInt(p.amount) || 0), 0);
-  const totalExpense = expenses.reduce((sum, e) => sum + (parseInt(e.amount) || 0), 0);
-  const netProfit = totalIncome - totalExpense;
+  const textMain = isDark ? 'text-white' : 'text-slate-900';
+  const textSub = isDark ? 'text-slate-400' : 'text-slate-500';
+  const hoverClass = isDark ? 'hover:bg-white/5' : 'hover:bg-slate-50';
 
-  // --- 2. GRAFIK LOGIKASI (UNIVERSAL) ---
+  // =========================================================================
+  // 1. STATISTIKA HISOB-KITOBI
+  // =========================================================================
+
+  const totalStudents = students.length;
+  const totalGroups = groups.length;
+  const totalLeads = leads.length;
+
+  const income = payments
+    .filter(p => p.type === 'income')
+    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    
+  const expense = payments
+    .filter(p => p.type === 'expense')
+    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+
+  const profit = income - expense;
+
+  // --- DIAGRAMMA (REAL DATA) ---
   const getChartData = () => {
-    let data = [];
-    const currentYear = today.getFullYear();
-    const currentMonth = today.getMonth();
-    const currentDate = today.getDate();
+    const data = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date();
+      d.setMonth(d.getMonth() - i);
+      const monthIndex = d.getMonth();
+      const year = d.getFullYear();
+      const monthName = d.toLocaleDateString('uz-UZ', { month: 'short' });
 
-    // A) YILLIK KO'RINISH (12 oy)
-    if (chartView === 'year') {
-      const months = ["Yan", "Fev", "Mar", "Apr", "May", "Iyun", "Iyul", "Avg", "Sen", "Okt", "Noy", "Dek"];
-      data = months.map((name, idx) => {
-        // Kelajak oylarini 0 qilish
-        if (idx > currentMonth && today.getFullYear() === currentYear) return { name, income: 0, expense: 0 };
-        
-        const inc = payments.filter(p => new Date(p.date).getMonth() === idx && new Date(p.date).getFullYear() === currentYear)
-          .reduce((sum, p) => sum + (parseInt(p.amount)||0), 0);
-        const exp = expenses.filter(e => new Date(e.date).getMonth() === idx && new Date(e.date).getFullYear() === currentYear)
-          .reduce((sum, e) => sum + (parseInt(e.amount)||0), 0);
-        return { name, income: inc, expense: exp };
+      const monthlyPayments = payments.filter(p => {
+         const pDate = new Date(p.created_at);
+         return pDate.getMonth() === monthIndex && pDate.getFullYear() === year;
       });
-    } 
-    
-    // B) OYLIK KO'RINISH (Kunlar: 1-31)
-    else if (chartView === 'month') {
-      const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate(); // Shu oy necha kun?
-      for (let i = 1; i <= daysInMonth; i++) {
-        // Kelajak kunlarini 0 qilish
-        if (i > currentDate) {
-           data.push({ name: `${i}`, income: 0, expense: 0 });
-           continue;
-        }
 
-        const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
-        
-        const inc = payments.filter(p => p.date === dateStr).reduce((sum, p) => sum + (parseInt(p.amount)||0), 0);
-        const exp = expenses.filter(e => e.date === dateStr).reduce((sum, e) => sum + (parseInt(e.amount)||0), 0);
-        
-        data.push({ name: `${i}`, income: inc, expense: exp });
-      }
-    } 
-    
-    // C) HAFTALIK KO'RINISH (Dush-Yak)
-    else if (chartView === 'week') {
-       const weekDays = ["Dush", "Sesh", "Chor", "Pay", "Juma", "Shan", "Yak"];
-       // Dushanbani topish
-       const dayOfWeek = today.getDay() || 7; // 1 (Mon) - 7 (Sun)
-       const monday = new Date(today);
-       monday.setDate(today.getDate() - dayOfWeek + 1);
+      const monthlyIncome = monthlyPayments.filter(p => p.type === 'income').reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+      const monthlyExpense = monthlyPayments.filter(p => p.type === 'expense').reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
-       for (let i = 0; i < 7; i++) {
-          const tempDate = new Date(monday);
-          tempDate.setDate(monday.getDate() + i);
-          const dateStr = tempDate.toISOString().slice(0, 10);
-          
-          // Kelajak kunlari 0
-          if (tempDate > today) {
-             data.push({ name: weekDays[i], income: 0, expense: 0 });
-             continue;
-          }
-
-          const inc = payments.filter(p => p.date === dateStr).reduce((sum, p) => sum + (parseInt(p.amount)||0), 0);
-          const exp = expenses.filter(e => e.date === dateStr).reduce((sum, e) => sum + (parseInt(e.amount)||0), 0);
-          
-          data.push({ name: weekDays[i], income: inc, expense: exp });
-       }
+      data.push({ name: monthName, income: monthlyIncome, expense: monthlyExpense });
     }
-
     return data;
   };
 
-  const chartData = useMemo(() => getChartData(), [chartView, payments, expenses]);
-  const maxVal = Math.max(...chartData.map(d => Math.max(d.income, d.expense))) || 1;
+  const chartData = getChartData();
+  const maxChartValue = Math.max(...chartData.map(d => d.income), 100);
 
-  // --- 3. SO'NGGI OPERATSIYALAR ---
-  const recentTransactions = [...payments, ...expenses]
-    .sort((a, b) => new Date(b.date) - new Date(a.date))
-    .slice(0, 6);
+  // --- SO'NGGI HARAKATLAR ---
+  const recentStudents = [...students].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 5);
+  const recentPayments = [...payments].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 4);
+  const formatMoney = (amount) => Number(amount).toLocaleString() + " so'm";
 
+  // =========================================================================
+  // 2. VISUAL (JSX)
+  // =========================================================================
+  
   return (
-    <div className={`p-6 min-h-screen pb-24 transition-colors duration-300 ${isDark ? 'bg-[#0b1120] text-slate-300' : 'bg-slate-50 text-slate-700'}`}>
+    <div className="p-6 md:p-8 min-h-screen pb-24">
       
-      {/* --- HEADER --- */}
-      <div className="flex flex-col md:flex-row justify-between items-end mb-8 gap-4">
+      {/* HEADER */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
-          <h1 className={`text-3xl font-black mb-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>Boshqaruv Paneli</h1>
-          <p className="text-slate-500 font-medium flex items-center gap-2">
-             <Activity size={16} className="text-emerald-500"/> Jonli statistika
-          </p>
+          <h1 className={`text-3xl font-black tracking-tight flex items-center gap-3 ${textMain}`}>
+             Dashboard <span className="px-3 py-1 bg-blue-500/10 text-blue-500 text-xs rounded-full font-bold uppercase tracking-wider border border-blue-500/20">Live</span>
+          </h1>
+          <p className={`${textSub} font-medium mt-1`}>Markazning bugungi holati va moliyaviy ko'rsatkichlari</p>
         </div>
-        <div className={`px-5 py-2 rounded-xl border font-bold flex items-center gap-2 shadow-sm ${isDark ? 'bg-[#161d31] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
-           <Calendar size={18} className="text-blue-500"/> Bugun: {formattedDate}
+        
+        <div className={`hidden md:flex px-4 py-2 rounded-2xl border items-center gap-3 font-bold text-sm ${isDark ? 'bg-[#1e293b] border-white/10 text-slate-300' : 'bg-white border-slate-100 text-slate-600'}`}>
+           <Calendar size={18} className="text-blue-500"/>
+           {new Date().toLocaleDateString('uz-UZ', { month: 'long', day: 'numeric', year: 'numeric' })}
         </div>
       </div>
 
-      {/* --- KARTALAR --- */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
-         {/* 1. O'quvchilar */}
-         <div className={`p-6 rounded-[28px] border relative overflow-hidden group hover:scale-[1.02] transition-all cursor-pointer ${isDark ? 'bg-[#161d31] border-white/5' : 'bg-white border-slate-200'}`}>
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition"><Users size={80} className="text-blue-500"/></div>
-            <div className="flex items-center gap-3 mb-3 text-blue-500 font-bold"><Users size={20}/> O'quvchilar</div>
-            <p className={`text-4xl font-black mb-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>{students.length}</p>
-            <p className="text-sm font-bold text-slate-500 text-emerald-500">+ {leads.length} lid</p>
-         </div>
-         {/* 2. Guruhlar */}
-         <div className={`p-6 rounded-[28px] border relative overflow-hidden group hover:scale-[1.02] transition-all cursor-pointer ${isDark ? 'bg-[#161d31] border-white/5' : 'bg-white border-slate-200'}`}>
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition"><Layers size={80} className="text-purple-500"/></div>
-            <div className="flex items-center gap-3 mb-3 text-purple-500 font-bold"><Layers size={20}/> Guruhlar</div>
-            <p className={`text-4xl font-black mb-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>{groups.length}</p>
-         </div>
-         {/* 3. Tushum */}
-         <div className={`p-6 rounded-[28px] border relative overflow-hidden group hover:scale-[1.02] transition-all cursor-pointer ${isDark ? 'bg-[#161d31] border-white/5' : 'bg-white border-slate-200'}`}>
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition"><TrendingUp size={80} className="text-emerald-500"/></div>
-            <div className="flex items-center gap-3 mb-3 text-emerald-500 font-bold"><TrendingUp size={20}/> Jami Tushum</div>
-            <p className={`text-3xl font-black mb-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>+{totalIncome.toLocaleString()}</p>
-         </div>
-         {/* 4. Foyda */}
-         <div className={`p-6 rounded-[28px] border relative overflow-hidden group hover:scale-[1.02] transition-all cursor-pointer ${isDark ? 'bg-gradient-to-br from-indigo-900/40 to-[#161d31] border-indigo-500/20' : 'bg-indigo-50 border-indigo-100'}`}>
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition"><Wallet size={80} className="text-indigo-500"/></div>
-            <div className="flex items-center gap-3 mb-3 text-indigo-500 font-bold"><Wallet size={20}/> Sof Foyda</div>
-            <p className={`text-3xl font-black mb-1 ${netProfit >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>{netProfit.toLocaleString()}</p>
-         </div>
+      {/* --- STATISTIKA KARTALARI --- */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        
+        {/* 1. Students */}
+        <div className={`p-6 rounded-[28px] transition-all duration-300 group hover:-translate-y-1 ${cardClass}`}>
+           <div className="flex justify-between items-start mb-6">
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-colors duration-300 ${isDark ? 'bg-blue-500/20 text-blue-400 group-hover:bg-blue-500 group-hover:text-white' : 'bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white'}`}>
+                 <Users size={28} />
+              </div>
+           </div>
+           <div>
+               <p className={`text-xs font-bold uppercase tracking-wider mb-1 ${textSub}`}>Jami O'quvchilar</p>
+               <h3 className={`text-4xl font-black ${textMain}`}>{totalStudents}</h3>
+           </div>
+        </div>
+
+        {/* 2. Groups */}
+        <div className={`p-6 rounded-[28px] transition-all duration-300 group hover:-translate-y-1 ${cardClass}`}>
+           <div className="flex justify-between items-start mb-6">
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-colors duration-300 ${isDark ? 'bg-purple-500/20 text-purple-400 group-hover:bg-purple-500 group-hover:text-white' : 'bg-purple-50 text-purple-600 group-hover:bg-purple-600 group-hover:text-white'}`}>
+                 <Layers size={28} />
+              </div>
+           </div>
+           <div>
+               <p className={`text-xs font-bold uppercase tracking-wider mb-1 ${textSub}`}>Guruhlar</p>
+               <h3 className={`text-4xl font-black ${textMain}`}>{totalGroups}</h3>
+           </div>
+        </div>
+
+        {/* 3. Leads */}
+        <div className={`p-6 rounded-[28px] transition-all duration-300 group hover:-translate-y-1 ${cardClass}`}>
+           <div className="flex justify-between items-start mb-6">
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-colors duration-300 ${isDark ? 'bg-orange-500/20 text-orange-400 group-hover:bg-orange-500 group-hover:text-white' : 'bg-orange-50 text-orange-600 group-hover:bg-orange-600 group-hover:text-white'}`}>
+                 <Phone size={28} />
+              </div>
+           </div>
+           <div>
+               <p className={`text-xs font-bold uppercase tracking-wider mb-1 ${textSub}`}>Yangi Lidlar</p>
+               <h3 className={`text-4xl font-black ${textMain}`}>{totalLeads}</h3>
+           </div>
+        </div>
+
+        {/* 4. Profit (Gradient - Har doim bir xil turadi) */}
+        <div className="relative overflow-hidden bg-gradient-to-br from-blue-600 to-indigo-800 p-6 rounded-[28px] shadow-lg shadow-blue-900/20 text-white hover:shadow-blue-600/30 hover:-translate-y-1 transition-all duration-300">
+           <div className="absolute top-0 right-0 p-4 opacity-10"><Wallet size={80} /></div>
+           <div className="relative z-10">
+              <div className="flex items-center gap-3 mb-6 opacity-90">
+                 <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm"><Wallet size={24}/></div>
+                 <span className="font-bold text-blue-100">Sof Foyda</span>
+              </div>
+              <h3 className="text-3xl font-black mb-2 tracking-tight">
+                {profit.toLocaleString()} <span className="text-lg font-medium opacity-70">so'm</span>
+              </h3>
+              <div className="flex items-center gap-4 text-xs font-medium text-blue-200 mt-4">
+                 <div className="flex items-center gap-1 bg-white/10 px-2 py-1 rounded-lg">
+                    <ArrowUpRight size={14}/> Kirim: {income.toLocaleString()}
+                 </div>
+              </div>
+           </div>
+        </div>
       </div>
 
-      {/* --- GRAFIK VA TARIX --- */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+      {/* --- ASOSIY GRAFIK VA RO'YXATLAR --- */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
          
-         {/* 🔥 TRADING VIEW CHART (O'ZGARUVCHAN) */}
-         <div className={`xl:col-span-2 p-8 rounded-[32px] border relative overflow-hidden flex flex-col ${isDark ? 'bg-[#161d31] border-white/5' : 'bg-white border-slate-200'}`}>
+         {/* 1. KATTA DIAGRAMMA */}
+         <div className={`lg:col-span-2 p-6 md:p-8 rounded-[32px] flex flex-col justify-between min-h-[400px] ${cardClass}`}>
             
-            {/* Fon chiziqlari */}
-            <div className="absolute inset-0 pointer-events-none opacity-10 flex flex-col justify-between p-8 pb-16">
-               {[1,2,3,4,5].map(i => <div key={i} className="border-b border-slate-500"></div>)}
-            </div>
-
-            <div className="flex flex-col md:flex-row justify-between items-center mb-8 relative z-10 gap-4">
-               <h3 className={`text-xl font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                  <BarChart4 className="text-blue-500"/> Moliyaviy Oqim
-               </h3>
-               
-               {/* 🔥 VAQT ORALIQLARI (TUGMALAR) */}
-               <div className={`flex p-1 rounded-xl border ${isDark ? 'bg-[#0b1120] border-white/5' : 'bg-slate-100 border-slate-200'}`}>
-                  {[
-                    { id: 'week', label: 'Hafta' },
-                    { id: 'month', label: 'Oy' },
-                    { id: 'year', label: 'Yil' }
-                  ].map(tab => (
-                    <button
-                      key={tab.id}
-                      onClick={() => setChartView(tab.id)}
-                      className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                        chartView === tab.id 
-                          ? 'bg-blue-600 text-white shadow-lg' 
-                          : 'text-slate-500 hover:text-slate-700'
-                      }`}
-                    >
-                      {tab.label}
-                    </button>
-                  ))}
+            <div className="flex justify-between items-center mb-8">
+               <div>
+                   <h3 className={`text-xl font-black flex items-center gap-2 ${textMain}`}>
+                     <Activity className="text-blue-500"/> Moliya Statistikasi
+                   </h3>
+                   <p className={`text-sm font-medium mt-1 ${textSub}`}>So'nggi 6 oylik real kirim va chiqimlar</p>
                </div>
+               <button className={`p-2 rounded-full transition ${isDark ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-400'}`}>
+                   <MoreHorizontal />
+               </button>
             </div>
 
-            {/* CHART */}
-            <div className="h-72 flex items-end justify-between gap-1 md:gap-2 relative z-10 flex-1">
-               {chartData.map((data, idx) => {
-                  const isProfit = data.income >= data.expense;
-                  const higherVal = Math.max(data.income, data.expense);
-                  const lowerVal = Math.min(data.income, data.expense);
-                  const topPosition = (higherVal / maxVal) * 100;
-                  const bottomPosition = (lowerVal / maxVal) * 100;
-                  const candleHeight = topPosition - bottomPosition;
-                  
+            {/* CHART BODY */}
+            <div className={`flex-1 flex items-end justify-between gap-3 md:gap-6 px-2 pb-2 relative border-b ${isDark ? 'border-white/5' : 'border-slate-100'}`}>
+               
+               {/* Grid Lines */}
+               <div className="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-10">
+                  {[1,2,3,4].map(i => <div key={i} className={`w-full h-px border-t border-dashed ${isDark ? 'border-white' : 'border-black'}`}></div>)}
+               </div>
+
+               {chartData.map((item, index) => {
+                  const incomePercent = (item.income / maxChartValue) * 100;
+                  const expensePercent = (item.expense / maxChartValue) * 100;
+                  const hIncome = item.income > 0 ? Math.max(incomePercent, 2) : 2;
+                  const hExpense = item.expense > 0 ? Math.max(expensePercent, 2) : 2;
+
                   return (
-                     <div key={idx} className="flex-1 flex flex-col items-center group relative h-full justify-end">
-                        {/* Tooltip */}
-                        <div className="absolute bottom-full mb-2 hidden group-hover:block z-20 bg-slate-900/90 backdrop-blur text-white text-[10px] p-3 rounded-xl shadow-2xl whitespace-nowrap border border-white/10 left-1/2 -translate-x-1/2">
-                           <div className="font-bold mb-1 text-center border-b border-white/10 pb-1">{data.name}</div>
-                           <div className="text-emerald-400">In: +{data.income.toLocaleString()}</div>
-                           <div className="text-rose-400">Out: -{data.expense.toLocaleString()}</div>
+                     <div key={index} className="flex flex-col items-center gap-3 flex-1 group relative z-10 h-full justify-end">
+                        <div className={`opacity-0 group-hover:opacity-100 absolute -top-12 text-white text-xs font-bold py-2 px-3 rounded-xl transition-all duration-300 transform translate-y-2 group-hover:translate-y-0 pointer-events-none shadow-xl z-20 whitespace-nowrap ${isDark ? 'bg-slate-700' : 'bg-slate-800'}`}>
+                           <div className="flex flex-col gap-1">
+                               <span className="text-emerald-400">+{formatMoney(item.income)}</span>
+                               <span className="text-rose-400">-{formatMoney(item.expense)}</span>
+                           </div>
                         </div>
 
-                        {/* Shamcha */}
-                        <div className="relative w-full h-full flex items-end justify-center">
-                           <div 
-                              style={{ 
-                                 height: `${candleHeight > 0 ? candleHeight : 0.5}%`,
-                                 bottom: `${bottomPosition}%` 
-                              }} 
-                              className={`absolute w-2 md:w-4 rounded-sm transition-all duration-300 group-hover:brightness-110
-                                 ${higherVal === 0 ? 'opacity-0' : 'opacity-100'}
-                                 ${isProfit 
-                                    ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.4)]' 
-                                    : 'bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.4)]'}
-                              `}
-                           ></div>
-                           {/* Wick (Ingichka chiziq) */}
-                           <div style={{ height: `${topPosition}%` }} className={`absolute w-[1px] bg-slate-500/30 bottom-0 z-[-1] ${higherVal === 0 ? 'opacity-0' : ''}`}></div>
+                        <div className="flex items-end gap-1 sm:gap-2 w-full justify-center h-full">
+                           <div style={{ height: `${hIncome}%` }} className={`w-3 sm:w-5 rounded-t-xl transition-all duration-500 ease-out group-hover:scale-y-105 ${item.income > 0 ? 'bg-gradient-to-t from-blue-600 to-cyan-400 shadow-lg shadow-blue-500/20' : (isDark ? 'bg-white/5' : 'bg-slate-200')}`}></div>
+                           <div style={{ height: `${hExpense}%` }} className={`w-3 sm:w-5 rounded-t-xl transition-all duration-500 ease-out group-hover:scale-y-105 ${item.expense > 0 ? 'bg-gradient-to-t from-rose-500 to-orange-400 opacity-80' : (isDark ? 'bg-white/5 opacity-50' : 'bg-slate-200 opacity-50')}`}></div>
                         </div>
                         
-                        <span className={`text-[9px] md:text-[10px] font-bold mt-4 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{data.name}</span>
+                        <span className={`text-xs font-bold group-hover:text-blue-500 transition-colors uppercase tracking-wide ${textSub}`}>
+                            {item.name}
+                        </span>
                      </div>
                   )
                })}
             </div>
          </div>
 
-         {/* TARIX */}
-         <div className={`p-6 rounded-[32px] border flex flex-col ${isDark ? 'bg-[#161d31] border-white/5' : 'bg-white border-slate-200'}`}>
-            <div className="flex items-center justify-between mb-6">
-               <h2 className={`text-xl font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                  <History className="text-orange-500"/> Tarix
-               </h2>
-               <span className="text-xs font-bold text-slate-500 bg-slate-500/10 px-2 py-1 rounded-lg">So'nggi 6 ta</span>
-            </div>
-            <div className="space-y-3 flex-1 overflow-y-auto custom-scrollbar">
-               {recentTransactions.length > 0 ? recentTransactions.map((item, idx) => (
-                  <div key={idx} className={`flex items-center justify-between p-3 rounded-2xl border transition hover:scale-[1.02] cursor-default ${isDark ? 'bg-[#0b1120] border-white/5 hover:bg-white/5' : 'bg-slate-50 border-slate-200 hover:bg-white'}`}>
-                     <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm ${item.type === 'income' ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}>
-                           {item.type === 'income' ? <ArrowDownLeft size={18}/> : <ArrowUpRight size={18}/>}
-                        </div>
-                        <div>
-                           <h4 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>{item.student || item.name || item.reason}</h4>
-                           <p className="text-[10px] text-slate-500 flex items-center gap-1"><Clock size={10}/> {item.date}</p>
-                        </div>
-                     </div>
-                     <span className={`font-black text-sm ${item.type === 'income' ? 'text-emerald-500' : 'text-rose-500'}`}>
-                        {item.type === 'income' ? '+' : '-'}{parseInt(item.amount).toLocaleString()}
-                     </span>
-                  </div>
-               )) : (
-                  <div className="text-center p-8 text-slate-500 text-sm">Hozircha operatsiyalar yo'q</div>
-               )}
-            </div>
-         </div>
+         {/* 2. O'NG TOMON PANEL */}
+         <div className="flex flex-col gap-6">
+            
+            {/* YANGI O'QUVCHILAR */}
+            <div className={`p-6 rounded-[32px] flex-1 ${cardClass}`}>
+                <div className="flex justify-between items-center mb-6">
+                   <h3 className={`text-lg font-black ${textMain}`}>Yangi O'quvchilar</h3>
+                </div>
 
+                <div className="space-y-4">
+                   {recentStudents.map((student, i) => (
+                      <div key={student.id} className={`flex items-center justify-between p-3 rounded-2xl transition-all duration-200 cursor-pointer group border border-transparent ${hoverClass}`}>
+                         <div className="flex items-center gap-3">
+                            <div className={`w-11 h-11 rounded-full flex items-center justify-center font-bold text-white text-lg shadow-md transform group-hover:scale-110 transition-transform duration-300
+                                ${['bg-orange-400', 'bg-blue-500', 'bg-emerald-500', 'bg-purple-500'][i % 4]}
+                            `}>
+                               {student.name.charAt(0)}
+                            </div>
+                            <div>
+                               <h4 className={`font-bold text-sm ${textMain}`}>{student.name}</h4>
+                               <p className={`text-xs font-medium ${textSub}`}>{student.phone}</p>
+                            </div>
+                         </div>
+                         <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                      </div>
+                   ))}
+                   {recentStudents.length === 0 && (
+                      <div className={`text-center py-8 font-medium rounded-2xl border border-dashed ${isDark ? 'bg-white/5 border-white/10 text-slate-500' : 'bg-slate-50 border-slate-200 text-slate-400'}`}>
+                          Hozircha o'quvchilar yo'q
+                      </div>
+                   )}
+                </div>
+            </div>
+
+            {/* SO'NGGI TO'LOVLAR */}
+            <div className={`p-6 rounded-[32px] ${cardClass}`}>
+                <h3 className={`text-lg font-black mb-4 flex items-center gap-2 ${textMain}`}>
+                    <CreditCard size={18} className="text-slate-400"/> So'nggi To'lovlar
+                </h3>
+                <div className="space-y-3">
+                    {recentPayments.map(p => (
+                        <div key={p.id} className={`flex items-center justify-between text-sm border-b pb-2 last:border-0 last:pb-0 ${isDark ? 'border-white/10' : 'border-slate-50'}`}>
+                            <span className={`font-medium truncate max-w-[120px] ${textSub}`}>{p.comment || 'To\'lov'}</span>
+                            <span className={`font-bold ${p.type === 'income' ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                {p.type === 'income' ? '+' : '-'}{Number(p.amount).toLocaleString()}
+                            </span>
+                        </div>
+                    ))}
+                    {recentPayments.length === 0 && (
+                        <p className={`text-xs text-center ${textSub}`}>To'lovlar tarixi bo'sh</p>
+                    )}
+                </div>
+            </div>
+
+         </div>
       </div>
     </div>
   );

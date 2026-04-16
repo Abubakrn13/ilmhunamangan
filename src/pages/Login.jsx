@@ -1,144 +1,196 @@
 import React, { useState, useEffect } from 'react';
 import { useData } from '../context/DataContext';
-import { useNavigate, useLocation } from 'react-router-dom'; // 🔥 useLocation qo'shildi
-import { 
-  User, Lock, ArrowRight, Building2, 
-  ArrowLeft, Users, Wallet, TrendingUp, Activity 
-} from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { User, Lock, ArrowRight, ArrowLeft, Moon, Sun, UserPlus, LogIn } from 'lucide-react';
 
 export const Login = () => {
-  const { login, register } = useData();
+  const { login, theme, toggleTheme } = useData();
   const navigate = useNavigate();
-  const location = useLocation(); // 🔥 URL va State ni o'qish uchun
+  const location = useLocation(); // Landing sahifadan qaysi tugma bosilganini bilish uchun
+  
+  // 🔥 MAVZUNI VA REJIMNI ANIQLASH
+  const isDark = theme === 'dark';
+  // Odatda 'login', lekin Landing'dan 'register' bosilgan bo'lsa 'register' bo'ladi
+  const [mode, setMode] = useState(location.state?.mode || 'login'); 
 
-  // 🔥 STATE ni locationdan o'qib olamiz
-  // Agar Landingdan 'register' signali kelsa TRUE, aks holda FALSE
-  const [isRegister, setIsRegister] = useState(false);
-
-  useEffect(() => {
-    if (location.state && location.state.mode === 'register') {
-      setIsRegister(true);
-    } else {
-      setIsRegister(false);
-    }
-  }, [location]);
-
+  // --- STATELAR ---
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [centerName, setCenterName] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState(''); // Faqat Register uchun
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(''); 
 
-  const handleSubmit = (e) => {
+  // Landingdan bosilgan mode o'zgarsa, oynani moslash
+  useEffect(() => {
+    if (location.state?.mode) {
+      setMode(location.state.mode);
+    }
+  }, [location.state]);
+
+  // 🔥 ASOSIY FUNKSIYA (LOGIN YOKI REGISTER)
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsLoading(true);
     setError('');
 
-    setTimeout(() => {
-      if (isRegister) {
-        if (username && password && centerName) register(username, password, centerName);
-        else { setError("Ma'lumotlar to'liq emas!"); setIsLoading(false); }
+    // Agar ro'yxatdan o'tish bo'lsa, parollarni tekshiramiz
+    if (mode === 'register' && password !== confirmPassword) {
+       return setError("Parollar bir-biriga mos tushmadi!");
+    }
+
+    setLoading(true);
+
+    try {
+      // Hozircha backend login funksiyasi avtomat ro'yxatdan o'tkazayotganligi 
+      // uchun ikkalasida ham bir xil funksiya chaqiramiz. 
+      // Agar backendda alohida "register" API qilsangiz, shu yerda ajratishingiz mumkin.
+      const res = await login(username, password);
+      
+      if (res && res.success) {
+        navigate('/dashboard');
       } else {
-        if (username && password) login(username, password);
-        else { setError("Login va parolni kiriting!"); setIsLoading(false); }
+        setError(res?.message || "Xatolik yuz berdi!");
+        setLoading(false);
       }
-    }, 1500);
+    } catch (err) {
+      setLoading(false);
+      setError(`Backend xatosi: ${err.message || "Server bilan aloqa yo'q"}`);
+    }
+  };
+
+  // Rejimni o'zgartirish (Login <-> Register)
+  const toggleMode = () => {
+    setMode(mode === 'login' ? 'register' : 'login');
+    setError('');
+    setPassword('');
+    setConfirmPassword('');
   };
 
   return (
-    <div className="min-h-screen w-full flex bg-slate-50 font-sans overflow-hidden">
+    <div className={`min-h-screen flex items-center justify-center p-4 relative transition-colors duration-300 ${isDark ? 'bg-[#0b1120]' : 'bg-slate-50'}`}>
       
-      {/* ORQAGA QAYTISH TUGMASI */}
-      <button onClick={() => navigate('/')} className="absolute top-6 left-6 z-50 p-3 rounded-full bg-white/10 backdrop-blur border border-white/20 text-slate-500 lg:text-white hover:bg-white/20 transition">
-         <ArrowLeft size={24}/>
-      </button>
+      {/* TEPADAGI TUGMALAR (Orqaga + Tun/Kun) */}
+      <div className="absolute top-6 left-6 right-6 flex justify-between items-center">
+          <button 
+            onClick={() => navigate('/')}
+            className={`flex items-center gap-2 font-bold transition px-4 py-2 rounded-xl ${isDark ? 'text-slate-400 hover:text-white hover:bg-white/10' : 'text-slate-500 hover:text-slate-800 hover:bg-white'}`}
+          >
+            <ArrowLeft size={20}/> Bosh sahifa
+          </button>
 
-      {/* --- CHAP TOMON (ANIMATSIYA) --- */}
-      <div className="hidden lg:flex w-1/2 bg-[#0f172a] relative items-center justify-center p-12 overflow-hidden">
-         <div className="absolute inset-0 w-full h-full">
-           {[...Array(20)].map((_, i) => (
-              <div key={i} className="absolute bg-blue-500/20 rounded-full animate-float"
-                style={{
-                   width: Math.random() * 100 + 20 + 'px', height: Math.random() * 100 + 20 + 'px',
-                   top: Math.random() * 100 + '%', left: Math.random() * 100 + '%',
-                   animationDuration: Math.random() * 10 + 5 + 's', animationDelay: Math.random() * 5 + 's'
-                }}></div>
-           ))}
-        </div>
-        <div className="relative z-10 w-[500px] h-[500px] flex items-center justify-center">
-           <div className="absolute w-[450px] h-[450px] border border-blue-500/10 rounded-full animate-[spin_20s_linear_infinite]">
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 p-3 bg-[#1e293b] border border-blue-500/30 rounded-2xl shadow-xl shadow-blue-500/20"><Users className="text-blue-400" size={24}/></div>
-              <div className="absolute bottom-0 right-1/4 translate-y-1/2 p-3 bg-[#1e293b] border border-emerald-500/30 rounded-2xl shadow-xl shadow-emerald-500/20"><Wallet className="text-emerald-400" size={24}/></div>
-           </div>
-           <div className="absolute w-[300px] h-[300px] border border-purple-500/10 rounded-full animate-[spin_15s_linear_infinite_reverse]">
-              <div className="absolute top-1/2 right-0 translate-x-1/2 -translate-y-1/2 p-3 bg-[#1e293b] border border-purple-500/30 rounded-2xl shadow-xl shadow-purple-500/20"><TrendingUp className="text-purple-400" size={24}/></div>
-           </div>
-           <div className="relative z-20 w-32 h-32 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-[32px] flex items-center justify-center shadow-2xl shadow-blue-500/50 animate-pulse-slow">
-              <span className="text-4xl font-black text-white">Ec</span>
-           </div>
-           <div className="absolute -bottom-24 text-center w-full">
-              <h1 className="text-3xl font-black text-white mb-2 tracking-tight">EduCore CRM</h1>
-              <p className="text-slate-400 font-medium">Barcha jarayonlar nazorat ostida</p>
-           </div>
-        </div>
+          <button 
+            onClick={toggleTheme}
+            className={`p-3 rounded-xl transition ${isDark ? 'bg-white/10 text-yellow-400' : 'bg-white text-slate-600 shadow-sm'}`}
+          >
+            {isDark ? <Sun size={20}/> : <Moon size={20}/>}
+          </button>
       </div>
 
-      {/* --- O'NG TOMON (FORMA) --- */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-white relative">
-        <div className="w-full max-w-md space-y-8">
-           <div className="text-center lg:text-left">
-              <div className="lg:hidden w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-blue-500/30"><span className="text-white font-black text-2xl">Ec</span></div>
-              <h2 className="text-4xl font-black text-slate-900 mb-2">{isRegister ? "Ro'yxatdan o'tish" : "Xush kelibsiz!"}</h2>
-              <p className="text-slate-500 text-lg">{isRegister ? "3 kunlik bepul sinov davrini boshlang." : "Hisobingizga kiring va boshqaring."}</p>
-           </div>
-
-           <form onSubmit={handleSubmit} className="space-y-5">
-              {isRegister && (
-                 <div className="space-y-2 animate-in slide-in-from-top-4 fade-in">
-                    <label className="text-sm font-bold text-slate-700 ml-1">O'quv Markaz Nomi</label>
-                    <div className="relative group">
-                       <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors"><Building2 size={20}/></div>
-                       <input type="text" placeholder="Masalan: Harvard Education" value={centerName} onChange={(e) => setCenterName(e.target.value)} className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all font-bold text-slate-700" />
-                    </div>
-                 </div>
-              )}
-              <div className="space-y-2">
-                 <label className="text-sm font-bold text-slate-700 ml-1">Login</label>
-                 <div className="relative group">
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors"><User size={20}/></div>
-                    <input type="text" placeholder="Admin" value={username} onChange={(e) => setUsername(e.target.value)} className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all font-bold text-slate-700" />
-                 </div>
-              </div>
-              <div className="space-y-2">
-                 <label className="text-sm font-bold text-slate-700 ml-1">Parol</label>
-                 <div className="relative group">
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors"><Lock size={20}/></div>
-                    <input type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all font-bold text-slate-700" />
-                 </div>
-              </div>
-              {error && <div className="p-4 rounded-xl bg-rose-50 text-rose-500 text-sm font-bold text-center border border-rose-100 animate-pulse">{error}</div>}
-              <button type="submit" disabled={isLoading} className="w-full py-4 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white rounded-2xl font-bold text-lg shadow-xl shadow-blue-500/30 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed group">
-                 {isLoading ? <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : <>{isRegister ? "Boshlash" : "Kirish"} <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform"/></>}
-              </button>
-           </form>
-
-           <div className="text-center pt-4 border-t border-slate-100">
-              <p className="text-slate-500">
-                 {isRegister ? "Hisobingiz bormi? " : "Hisobingiz yo'qmi? "}
-                 <button onClick={() => { setIsRegister(!isRegister); setError(''); }} className="font-bold text-blue-600 hover:text-blue-700 transition">
-                    {isRegister ? "Kirish" : "Ro'yxatdan o'tish"}
-                 </button>
-              </p>
-           </div>
+      {/* ASOSIY KARTA */}
+      <div className={`p-8 md:p-12 rounded-[32px] shadow-2xl w-full max-w-md border transition-all duration-500 ${isDark ? 'bg-[#1e293b] border-white/10' : 'bg-white border-slate-100'}`}>
+        
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white mx-auto mb-4 shadow-lg shadow-blue-500/30">
+            {mode === 'login' ? <LogIn size={32} /> : <UserPlus size={32} />}
+          </div>
+          <h1 className={`text-3xl font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>
+            {mode === 'login' ? 'Xush Kelibsiz!' : "Ro'yxatdan O'tish"}
+          </h1>
+          <p className={`mt-2 text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+            {mode === 'login' 
+              ? "Boshqaruv paneliga kirish uchun ma'lumotlaringizni kiriting." 
+              : "Yangi tizimdan foydalanish uchun o'z profilingizni yarating."}
+          </p>
         </div>
-      </div>
 
-      <style>{`
-        @keyframes float { 0%, 100% { transform: translateY(0) translateX(0); opacity: 0.3; } 50% { transform: translateY(-20px) translateX(10px); opacity: 0.6; } }
-        .animate-float { animation: float infinite ease-in-out; }
-        @keyframes pulse-slow { 0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4); } 50% { transform: scale(1.05); box-shadow: 0 0 20px 10px rgba(37, 99, 235, 0); } }
-        .animate-pulse-slow { animation: pulse-slow 3s infinite; }
-      `}</style>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          
+          {/* LOGIN INPUT */}
+          <div>
+            <label className={`block text-xs font-bold uppercase mb-2 ml-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Login</label>
+            <div className={`flex items-center px-4 py-3.5 border rounded-xl focus-within:ring-2 ring-blue-500 transition ${isDark ? 'bg-[#0b1120] border-white/10' : 'bg-slate-50 border-slate-200 focus-within:bg-white'}`}>
+              <User className={`mr-3 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} size={20}/>
+              <input 
+                type="text" 
+                required
+                placeholder="Markaz nomini kiriting" 
+                className={`bg-transparent w-full outline-none font-bold placeholder:font-normal ${isDark ? 'text-white placeholder:text-slate-600' : 'text-slate-800 placeholder:text-slate-400'}`}
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* PAROL INPUT */}
+          <div>
+            <label className={`block text-xs font-bold uppercase mb-2 ml-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Parol</label>
+            <div className={`flex items-center px-4 py-3.5 border rounded-xl focus-within:ring-2 ring-blue-500 transition ${isDark ? 'bg-[#0b1120] border-white/10' : 'bg-slate-50 border-slate-200 focus-within:bg-white'}`}>
+              <Lock className={`mr-3 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} size={20}/>
+              <input 
+                type="password" 
+                required
+                placeholder="••••••••" 
+                className={`bg-transparent w-full outline-none font-bold placeholder:font-normal ${isDark ? 'text-white placeholder:text-slate-600' : 'text-slate-800 placeholder:text-slate-400'}`}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* 🔥 FAQAT REGISTER REJIMIDA CHIQADIGAN "PAROLNI TASDIQLASH" QISMI */}
+          {mode === 'register' && (
+            <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+              <label className={`block text-xs font-bold uppercase mb-2 ml-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Parolni tasdiqlang</label>
+              <div className={`flex items-center px-4 py-3.5 border rounded-xl focus-within:ring-2 ring-blue-500 transition ${isDark ? 'bg-[#0b1120] border-white/10' : 'bg-slate-50 border-slate-200 focus-within:bg-white'}`}>
+                <Lock className={`mr-3 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} size={20}/>
+                <input 
+                  type="password" 
+                  required
+                  placeholder="Parolni qayta kiriting" 
+                  className={`bg-transparent w-full outline-none font-bold placeholder:font-normal ${isDark ? 'text-white placeholder:text-slate-600' : 'text-slate-800 placeholder:text-slate-400'}`}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* XATOLIKNI EKRANDA KO'RSATISH QISMI */}
+          {error && (
+            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-sm font-bold text-center animate-in slide-in-from-top-2">
+              ⚠️ {error}
+            </div>
+          )}
+
+          {/* TUGMA */}
+          <button 
+            disabled={loading}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-bold text-lg shadow-lg shadow-blue-500/30 transition active:scale-95 flex items-center justify-center gap-2 mt-6 disabled:opacity-70 disabled:cursor-not-allowed"
+          >
+            {loading ? (
+                <span className="animate-pulse">Yuklanmoqda...</span>
+            ) : (
+                <>
+                  {mode === 'login' ? 'Tizimga Kirish' : 'Profil Yaratish'} 
+                  <ArrowRight size={20}/>
+                </>
+            )}
+          </button>
+        </form>
+        
+        {/* REJIMNI O'ZGARTIRISH (TOGGLE) QISMI */}
+        <div className={`mt-8 pt-6 border-t text-center ${isDark ? 'border-white/10' : 'border-slate-100'}`}>
+            <p className={`text-sm font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+               {mode === 'login' ? "Akkauntingiz yo'qmi?" : "Allaqachon akkauntingiz bormi?"}
+               <button 
+                 onClick={toggleMode} 
+                 className="ml-2 text-blue-500 font-bold hover:underline outline-none"
+               >
+                 {mode === 'login' ? "Ro'yxatdan o'ting" : "Tizimga kiring"}
+               </button>
+            </p>
+        </div>
+
+      </div>
     </div>
   );
 };

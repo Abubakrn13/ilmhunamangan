@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { CreditCard, Lock, ArrowLeft, CheckCircle, ShieldCheck } from 'lucide-react';
-const { planId, planName, price, billing } = location.state || {};
+
 export const Checkout = () => {
   const { upgradePlan, theme } = useData();
   const navigate = useNavigate();

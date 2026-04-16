@@ -1,82 +1,85 @@
-import React from 'react';
-import { NavLink } from 'react-router-dom';
+import React, { useState } from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { 
-  LayoutDashboard, 
-  Users, 
-  Layers, 
-  Wallet, 
-  Settings, 
-  LogOut, 
-  GraduationCap, 
-  ClipboardCheck, 
-  UserPlus 
+  LayoutDashboard, Users, Layers, GraduationCap, 
+  Wallet, Phone, Settings, LogOut, X, 
+  Moon, Sun 
 } from 'lucide-react';
 
-export const Sidebar = () => {
-  // DataContext dan ma'lumotlarni olishda xatolik bo'lmasligi uchun tekshiramiz
-  const data = useData();
-  const storeName = data?.storeName || 'EduCore';
-  const logout = data?.logout || (() => console.log("Logout function not found"));
-  const theme = data?.theme || 'light';
-  
+export const Sidebar = ({ isOpen, onClose }) => {
+  const { logout, storeName, theme, toggleTheme } = useData();
+  const navigate = useNavigate();
+  const [isHovered, setIsHovered] = useState(false);
+
   const isDark = theme === 'dark';
 
+  // --- RANGLAR ---
+  const bgClass = isDark ? 'bg-[#0f172a] border-white/5 text-slate-400' : 'bg-white border-slate-200 text-slate-600';
+  const activeClass = isDark ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-blue-50 text-blue-600';
+  const hoverClass = isDark ? 'hover:bg-white/5 hover:text-white' : 'hover:bg-slate-50 hover:text-slate-900';
+
   const menuItems = [
-    { path: '/', icon: <LayoutDashboard size={24} />, label: 'Boshqaruv' },
-    { path: '/leads', icon: <UserPlus size={24} />, label: 'Lidlar (Qabul)' },
-    { path: '/students', icon: <Users size={24} />, label: 'O\'quvchilar' },
-    { path: '/groups', icon: <Layers size={24} />, label: 'Guruhlar' },
-    { path: '/attendance', icon: <ClipboardCheck size={24} />, label: 'Davomat' },
-    { path: '/finance', icon: <Wallet size={24} />, label: 'Moliya' },
-    { path: '/teachers', icon: <GraduationCap size={24} />, label: 'O\'qituvchilar' },
-    { path: '/settings', icon: <Settings size={24} />, label: 'Sozlamalar' },
+    { path: '/dashboard', name: 'Dashboard', icon: <LayoutDashboard size={20} /> },
+    { path: '/students', name: "O'quvchilar", icon: <Users size={20} /> },
+    { path: '/groups', name: 'Guruhlar', icon: <Layers size={20} /> },
+    { path: '/teachers', name: "O'qituvchilar", icon: <GraduationCap size={20} /> },
+    { path: '/payments', name: "To'lovlar", icon: <Wallet size={20} /> },
+    { path: '/leads', name: 'Lidlar', icon: <Phone size={20} /> },
+    { path: '/settings', name: 'Sozlamalar', icon: <Settings size={20} /> },
   ];
 
+  const handleLogout = () => {
+    if(confirm("Chiqasizmi?")) { logout(); navigate('/login'); }
+  };
+
   return (
-    // 🔥 ASOSIY KONTEYNER
-    // w-20 (80px) -> hover:w-64 (256px)
-    <div 
-      className={`hidden md:flex flex-col fixed left-0 top-0 h-screen border-r z-50 transition-all duration-300 ease-in-out group w-20 hover:w-64 overflow-hidden ${isDark ? 'bg-[#161d31] border-white/5' : 'bg-white border-slate-200'}`}
-    >
-      
-      {/* --- LOGO QISMI --- */}
-      <div className="h-20 flex items-center min-w-[256px] px-5 border-b border-dashed border-slate-200/20">
-        <div className="w-10 h-10 min-w-[40px] bg-blue-600 rounded-xl flex items-center justify-center text-white font-black text-xl shadow-lg shadow-blue-500/30">
-          Ec
+    <>
+      {/* Mobile Overlay */}
+      {isOpen && <div onClick={onClose} className="fixed inset-0 bg-black/50 z-40 md:hidden backdrop-blur-sm"/>}
+
+      <aside 
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        className={`fixed top-0 left-0 z-50 h-screen transition-all duration-300 ease-in-out border-r shadow-2xl overflow-hidden flex flex-col
+          ${bgClass}
+          ${isOpen ? 'translate-x-0 w-64' : '-translate-x-full w-64'}
+          md:translate-x-0 ${isHovered ? 'md:w-64' : 'md:w-20'}
+        `}
+      >
+        {/* LOGO */}
+        <div className="h-20 flex items-center px-5 gap-3 flex-shrink-0">
+           <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-blue-500/30 flex-shrink-0">E</div>
+           <div className={`transition-all duration-300 overflow-hidden whitespace-nowrap ${isHovered || isOpen ? 'opacity-100 w-auto' : 'opacity-0 w-0'}`}>
+              <h1 className={`font-bold text-lg leading-tight ${isDark ? 'text-white' : 'text-slate-800'}`}>{storeName || 'EduCore'}</h1>
+              <p className="text-[10px] font-bold uppercase opacity-50">CRM System</p>
+           </div>
+           {/* Mobile Close */}
+           <button onClick={onClose} className="md:hidden ml-auto"><X/></button>
         </div>
-        
-        {/* Yozuv (Animatsiya bilan chiqadi) */}
-        <h1 className={`font-black text-xl tracking-tight ml-3 transition-opacity duration-300 opacity-0 group-hover:opacity-100 whitespace-nowrap ${isDark ? 'text-white' : 'text-slate-900'}`}>
-          {storeName}
-        </h1>
-      </div>
 
-      {/* --- MENU QISMI --- */}
-      <div className="flex-1 overflow-y-auto py-6 space-y-2 custom-scrollbar overflow-x-hidden">
-        {menuItems.map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            className={({ isActive }) => `
-              flex items-center h-12 mx-3 px-3 rounded-xl font-bold transition-all duration-200 min-w-[200px]
-              ${isActive 
-                ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' 
-                : isDark ? 'text-slate-400 hover:bg-white/5 hover:text-white' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}
-            `}
-          >
-            {/* Ikonka */}
-            <div className="w-6 h-6 flex items-center justify-center shrink-0">
-               {item.icon}
-            </div>
+        {/* MENU */}
+        <nav className="flex-1 px-3 space-y-2 mt-2 overflow-y-auto">
+           {menuItems.map(item => (
+              <NavLink key={item.path} to={item.path} onClick={() => onClose()}
+                className={({isActive}) => `flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-300 font-medium whitespace-nowrap overflow-hidden ${isActive ? activeClass : hoverClass}`}
+              >
+                 <div className="min-w-[24px] flex justify-center">{item.icon}</div>
+                 <span className={`transition-all duration-300 ${isHovered || isOpen ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-5'}`}>{item.name}</span>
+              </NavLink>
+           ))}
+        </nav>
 
-            {/* Yozuv */}
-            <span className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap delay-75">
-               {item.label}
-            </span>
-          </NavLink>
-        ))}
-      </div>
-    </div>
+        {/* FOOTER */}
+        <div className="p-3 mt-auto space-y-2 border-t border-white/5">
+           <button onClick={toggleTheme} className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all whitespace-nowrap ${isDark ? 'bg-slate-800 hover:bg-slate-700' : 'bg-slate-100 hover:bg-slate-200'}`}>
+              <div className="min-w-[24px] flex justify-center">{isDark ? <Sun size={20} className="text-yellow-400"/> : <Moon size={20} className="text-slate-600"/>}</div>
+              <span className={`transition-all duration-300 font-bold text-sm ${isHovered || isOpen ? 'opacity-100' : 'opacity-0'} ${isDark?'text-white':'text-slate-700'}`}>{isDark ? 'Kunduzgi' : 'Tungi'}</span>
+           </button>
+           
+           
+        </div>
+      </aside>
+    </>
   );
 };

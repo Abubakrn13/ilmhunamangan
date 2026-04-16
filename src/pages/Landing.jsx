@@ -21,29 +21,39 @@ export const Landing = () => {
   const goToLogin = () => navigate('/login', { state: { mode: 'login' } });
   const goToRegister = () => navigate('/login', { state: { mode: 'register' } });
 
+  // 🔥 1. TELEGRAM ADMIN USERNAME
+  const ADMIN_TG = "Abubakrmirzaev"; 
+
+  // 🔥 2. TELEGRAMGA YUBORISH FUNKSIYASI
+  const handleJoin = (planName, price) => {
+      const period = billing === 'month' ? "Oylik" : "Yillik";
+      const text = `👋 Salom! Men EduCore platformasiga qo'shilmoqchiman.\n\n🚀 Tarif: ${planName}\n📅 Davr: ${period}\n💰 Narx: $${price}\n\nIltimos, ro'yxatdan o'tishga yordam bering.`;
+      window.open(`https://t.me/${ADMIN_TG}?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
   // --- DATA ---
   const plans = [
     {
       name: 'Start', 
-      priceMonth: 15, 
-      priceYear: 150, 
+      priceMonth: 25, 
+      priceYear: 249, 
       icon: <Layout className="text-blue-500" size={32}/>,
-      features: ['50 ta O\'quvchi', '5 ta Guruh', 'Moliyaviy hisobot', 'SMS xabarnoma'], 
+      features: ['300 ta O\'quvchi', '20 ta Guruh', 'Moliyaviy hisobot', 'SMS xabarnoma'], 
       color: 'blue'
     },
     {
       name: 'Pro', 
-      priceMonth: 25, 
-      priceYear: 250, 
+      priceMonth: 40, 
+      priceYear: 399, 
       icon: <Zap className="text-yellow-500" size={32}/>,
-      features: ['200 ta O\'quvchi', '15 ta Guruh', 'Barcha funksiyalar', 'Telegram Bot'], 
+      features: ['500 ta O\'quvchi', '40 ta Guruh', 'Barcha funksiyalar', 'Priority Yordam'], 
       popular: true, 
       color: 'yellow'
     },
     {
       name: 'Business', 
-      priceMonth: 50, 
-      priceYear: 500, 
+      priceMonth: 75, 
+      priceYear: 749, 
       icon: <Shield className="text-emerald-500" size={32}/>,
       features: ['Cheksiz O\'quvchi', 'Cheksiz Guruh', 'VIP Server', 'Shaxsiy Menejer'], 
       color: 'emerald'
@@ -197,29 +207,38 @@ export const Landing = () => {
          </div>
 
          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {plans.map((plan, idx) => (
-               <div key={idx} className={`relative p-8 rounded-[32px] border transition-all duration-300 hover:-translate-y-4 hover:shadow-2xl flex flex-col group ${isDark ? 'bg-[#161d31] border-white/5' : 'bg-white border-slate-200'} ${plan.popular ? 'border-yellow-500 ring-4 ring-yellow-500/10 z-10 scale-105 shadow-xl' : ''}`}>
-                  {plan.popular && <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 px-4 py-1 bg-yellow-500 text-white font-bold text-xs rounded-full uppercase tracking-wider">Eng Ommabop</div>}
-                  <div className="mb-8">
-                     <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-6 bg-${plan.color}-500/10 text-${plan.color}-500`}>{plan.icon}</div>
-                     <h3 className={`text-2xl font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>{plan.name}</h3>
-                     <div className="flex items-end gap-1 mt-2">
-                        <span className={`text-5xl font-black tracking-tighter ${isDark ? 'text-white' : 'text-slate-900'}`}>{billing === 'month' ? plan.priceMonth : plan.priceYear}</span>
-                        <span className="text-slate-500 font-bold mb-1">/{billing === 'month' ? '$ oyiga' : '$ yiliga'}</span>
+            {plans.map((plan, idx) => {
+               const price = billing === 'month' ? plan.priceMonth : plan.priceYear;
+               return (
+                  <div key={idx} className={`relative p-8 rounded-[32px] border transition-all duration-300 hover:-translate-y-4 hover:shadow-2xl flex flex-col group ${isDark ? 'bg-[#161d31] border-white/5' : 'bg-white border-slate-200'} ${plan.popular ? 'border-yellow-500 ring-4 ring-yellow-500/10 z-10 scale-105 shadow-xl' : ''}`}>
+                     {plan.popular && <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 px-4 py-1 bg-yellow-500 text-white font-bold text-xs rounded-full uppercase tracking-wider">Eng Ommabop</div>}
+                     <div className="mb-8">
+                        <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-6 bg-${plan.color}-500/10 text-${plan.color}-500`}>{plan.icon}</div>
+                        <h3 className={`text-2xl font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>{plan.name}</h3>
+                        <div className="flex items-end gap-1 mt-2">
+                           <span className={`text-5xl font-black tracking-tighter ${isDark ? 'text-white' : 'text-slate-900'}`}>{price}</span>
+                           <span className="text-slate-500 font-bold mb-1">/{billing === 'month' ? '$ oyiga' : '$ yiliga'}</span>
+                        </div>
+                        {billing === 'year' && <p className="text-xs text-emerald-500 font-bold mt-1">Siz ${plan.priceMonth * 2} tejaysiz!</p>}
                      </div>
-                     {billing === 'year' && <p className="text-xs text-emerald-500 font-bold mt-1">Siz ${plan.priceMonth * 2} tejaysiz!</p>}
+                     <ul className="flex-1 space-y-4 mb-8">
+                        {plan.features.map((feature, fIdx) => (
+                           <li key={fIdx} className={`flex items-center gap-3 font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                              <div className={`w-5 h-5 rounded-full flex items-center justify-center bg-${plan.color}-500/20 text-${plan.color}-500`}><Check size={12} strokeWidth={3}/></div>
+                              {feature}
+                           </li>
+                        ))}
+                     </ul>
+                     {/* 🔥 TELEGRAM TUGMASI (O'ZGARTIRILDI) */}
+                     <button 
+                        onClick={() => handleJoin(plan.name, price)}
+                        className={`w-full py-4 rounded-2xl font-bold text-lg transition shadow-lg active:scale-95 bg-${plan.color}-500 hover:bg-${plan.color}-600 text-white shadow-${plan.color}-500/30`}
+                     >
+                        Tanlash
+                     </button>
                   </div>
-                  <ul className="flex-1 space-y-4 mb-8">
-                     {plan.features.map((feature, fIdx) => (
-                        <li key={fIdx} className={`flex items-center gap-3 font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                           <div className={`w-5 h-5 rounded-full flex items-center justify-center bg-${plan.color}-500/20 text-${plan.color}-500`}><Check size={12} strokeWidth={3}/></div>
-                           {feature}
-                        </li>
-                     ))}
-                  </ul>
-                  <button onClick={goToRegister} className={`w-full py-4 rounded-2xl font-bold text-lg transition shadow-lg active:scale-95 bg-${plan.color}-500 hover:bg-${plan.color}-600 text-white shadow-${plan.color}-500/30`}>Tanlash</button>
-               </div>
-            ))}
+               );
+            })}
          </div>
       </div>
 
@@ -260,16 +279,57 @@ export const Landing = () => {
          </div>
       </div>
 
-      <footer className={`py-10 border-t text-center text-slate-500 transition-colors duration-300 ${isDark ? 'bg-[#0b1120] border-white/5' : 'bg-slate-50 border-slate-200'}`}>
-         <div className="flex items-center justify-center gap-2 mb-4">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-black">Ec</div>
-            <span className={`text-xl font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>EduCore</span>
-         </div>
-         <p className="mb-4">© 2026 EduCore Inc. O'zbekistonda ❤️ bilan.</p>
-         <div className="flex justify-center gap-6 text-sm font-bold">
-            <a href="#" className="hover:text-blue-500">Xizmatlar</a>
-            <a href="#" className="hover:text-blue-500">Maxfiylik</a>
-            <a href="#" className="hover:text-blue-500">Aloqa</a>
+     <footer className={`py-12 border-t transition-colors duration-300 ${isDark ? 'bg-[#0b1120] border-white/5' : 'bg-slate-50 border-slate-200'}`}>
+         <div className="max-w-7xl mx-auto px-6 flex flex-col items-center">
+            
+            {/* Logo qismi */}
+            <div className="flex items-center gap-2 mb-6">
+               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-black">Ec</div>
+               <span className={`text-xl font-black tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>EduCore</span>
+            </div>
+
+            {/* Asosiy yozuv va Mualliflar (Premium ko'rinish) */}
+            <div className="text-center mb-8">
+                <p className="text-slate-500 mb-2">Ta'limni raqamlashtirish sari bir qadam.</p>
+                <div className={`inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-full border text-sm font-medium transition-all hover:shadow-lg hover:-translate-y-0.5 cursor-pointer ${isDark ? 'bg-white/5 border-white/10 text-slate-400 hover:border-blue-500/50 hover:bg-blue-500/10' : 'bg-white border-slate-200 text-slate-600 shadow-sm hover:border-blue-300 hover:bg-blue-50'}`}>
+                    <span className="opacity-80">Developed by</span>
+                    {/* Ismlar (Gradient effekt bilan) */}
+                    <span className="font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600">
+                       Abubakr Mirzaev
+                    </span>
+                </div>
+            </div>
+
+            {/* Havolalar */}
+            {/* Havolalar */}
+            <div className="flex flex-wrap justify-center gap-x-8 gap-y-4 text-sm font-bold text-slate-500 mb-6">
+               
+               <button 
+                  onClick={() => navigate('/terms')} 
+                  className="hover:text-blue-500 transition cursor-pointer"
+               >
+                  Xizmatlar sharti
+               </button>
+               
+               <button 
+                  onClick={() => navigate('/privacy')} 
+                  className="hover:text-blue-500 transition cursor-pointer"
+               >
+                  Maxfiylik siyosati
+               </button>
+               
+               <a 
+                  href="https://t.me/Abubakrmirzaev" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="hover:text-blue-500 transition cursor-pointer"
+               >
+                  Telegram Aloqa
+               </a>
+
+            </div>
+
+            <p className="text-slate-500 text-xs font-medium">© {new Date().getFullYear()} EduCore. Barcha huquqlar himoyalangan.</p>
          </div>
       </footer>
     </div>
